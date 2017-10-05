@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
+	"path/filepath"
 
 	"github.com/rjeczalik/notify"
 )
 
 const configFilename = "uploader.yaml"
 const privConfigFilename = "uploader-priv.yaml"
-const cptvExtension = ".cptv"
+const cptvGlob = "*.cptv"
 
 func main() {
 	err := runMain()
@@ -36,31 +36,39 @@ func runMain() error {
 		return err
 	}
 	if api.JustRegistered() {
-		log.Println("First time, registration, saving password")
+		log.Println("first time registration - saving password")
 		err := WritePassword(privConfigFilename, api.Password())
 		if err != nil {
 			return err
 		}
 	}
 
-	// XXX handle pre-existing files on startup
-
 	log.Println("watching", conf.Directory)
-
-	// Use a big channel buffer so that events are kept even if
-	// uploads take a while.
-	fsEvents := make(chan notify.EventInfo, 64)
+	fsEvents := make(chan notify.EventInfo, 1)
 	if err := notify.Watch(conf.Directory, fsEvents, notify.InCloseWrite, notify.InMovedTo); err != nil {
 		return err
 	}
 	defer notify.Stop(fsEvents)
 	for {
-		event := <-fsEvents
-		if strings.HasSuffix(event.Path(), cptvExtension) {
-			err := uploadFile(api, event.Path())
-			if err != nil {
-				return err
-			}
+		// Check for files to upload first in case there are CPTV
+		// files around when the uploader starts.
+		if err := uploadFiles(api, conf.Directory); err != nil {
+			return err
+		}
+		// Block until there's activity in the directory. We don't
+		// care what it is as uploadFiles will only act on CPTV
+		// files.
+		<-fsEvents
+	}
+	return nil
+}
+
+func uploadFiles(api *CacophonyAPI, directory string) error {
+	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
+	for _, filename := range matches {
+		err := uploadFile(api, filename)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
