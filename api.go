@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 )
 
@@ -119,6 +121,46 @@ func (api *CacophonyAPI) newToken() error {
 		return fmt.Errorf("registration failed: %v", resp.message())
 	}
 	api.token = resp.Token
+	return nil
+}
+
+func (api *CacophonyAPI) UploadThermalRaw(r io.Reader) error {
+	buf := new(bytes.Buffer)
+	w := multipart.NewWriter(buf)
+
+	// JSON encoded "data" parameter.
+	if dataBuf, err := json.Marshal(map[string]string{
+		"type": "thermalRaw",
+	}); err != nil {
+		return err
+	} else {
+		if err := w.WriteField("data", string(dataBuf)); err != nil {
+			return err
+		}
+	}
+
+	// Add the file as a new MIME part.
+	fw, err := w.CreateFormFile("file", "file")
+	if err != nil {
+		return err
+	}
+	io.Copy(fw, r)
+
+	w.Close()
+
+	req, err := http.NewRequest("POST", api.serverURL+"/api/v1/recordings", buf)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Set("Authorization", api.token)
+
+	client := new(http.Client)
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
 	return nil
 }
 

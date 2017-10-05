@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"log"
 )
 
@@ -36,5 +37,12 @@ func runMain() error {
 			return err
 		}
 	}
+
+	content := bytes.NewBufferString("hai")
+	err = api.UploadThermalRaw(content)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
