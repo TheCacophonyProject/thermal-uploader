@@ -1,0 +1,14 @@
+#
+# Rename this file to uploader.yaml and complete.
+# All fields are required.
+#
+
+# The URL to use to connect to the Cacophony API server.
+# For production scenarios this will be "https://api.cacophony.org.nz"
+server-url: "URL"
+
+# User group on the API server that this device belongs to.
+group: "GROUP"
+
+# The unique name to use for this device.
+device-name: "DEVICE"

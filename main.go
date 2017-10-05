@@ -3,23 +3,38 @@
 package main
 
 import (
-	"fmt"
+	"log"
 )
 
-// XXX to come from YAML config
-const (
-	serverURL  = "http://127.0.0.1:9999"
-	group      = "foo"
-	deviceName = "foo3"
-	password   = "5iwhqm7qfvylupi6jxn2"
-)
+const configFilename = "uploader.yaml"
+const privConfigFilename = "uploader-priv.yaml"
 
 func main() {
-	api, err := NewAPI(serverURL, group, deviceName, password)
+	err := runMain()
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatal(err.Error())
 	}
-	fmt.Println("password", api.Password())
-	fmt.Println("token", api.token)
+}
+
+func runMain() error {
+	conf, err := ParseConfigFile(configFilename)
+	if err != nil {
+		return err
+	}
+	password, err := ReadPassword(privConfigFilename)
+	if err != nil {
+		return err
+	}
+	api, err := NewAPI(conf.ServerURL, conf.Group, conf.DeviceName, password)
+	if err != nil {
+		return err
+	}
+	if api.JustRegistered() {
+		log.Println("First time, registration, saving password")
+		err := WritePassword(privConfigFilename, api.Password())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

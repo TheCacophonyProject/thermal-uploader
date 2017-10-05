@@ -24,6 +24,7 @@ func NewAPI(serverURL, group, deviceName, password string) (*CacophonyAPI, error
 		if err != nil {
 			return nil, err
 		}
+		api.justRegistered = true
 	} else {
 		err := api.newToken()
 		if err != nil {
@@ -34,15 +35,20 @@ func NewAPI(serverURL, group, deviceName, password string) (*CacophonyAPI, error
 }
 
 type CacophonyAPI struct {
-	serverURL  string
-	group      string
-	deviceName string
-	password   string
-	token      string
+	serverURL      string
+	group          string
+	deviceName     string
+	password       string
+	token          string
+	justRegistered bool
 }
 
 func (api *CacophonyAPI) Password() string {
 	return api.password
+}
+
+func (api *CacophonyAPI) JustRegistered() bool {
+	return api.justRegistered
 }
 
 func (api *CacophonyAPI) register() error {
