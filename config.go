@@ -46,7 +46,9 @@ func ParseConfigFile(filename string) (*Config, error) {
 }
 
 func ParseConfig(buf []byte) (*Config, error) {
-	conf := new(Config)
+	conf := &Config{
+		Directory: "/var/spool/cptv",
+	}
 	if err := yaml.Unmarshal(buf, conf); err != nil {
 		return nil, err
 	}

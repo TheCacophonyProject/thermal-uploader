@@ -7,13 +7,24 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
+	arg "github.com/alexflint/go-arg"
 	"github.com/rjeczalik/notify"
 )
 
-const configFilename = "uploader.yaml"
-const privConfigFilename = "uploader-priv.yaml"
 const cptvGlob = "*.cptv"
+
+type Args struct {
+	ConfigFile string `arg:"-c,--config" help:"path to configuration file"`
+}
+
+func procArgs() Args {
+	var args Args
+	args.ConfigFile = "/etc/thermal-uploader.yaml"
+	arg.MustParse(&args)
+	return args
+}
 
 func main() {
 	err := runMain()
@@ -23,10 +34,13 @@ func main() {
 }
 
 func runMain() error {
-	conf, err := ParseConfigFile(configFilename)
+	args := procArgs()
+	conf, err := ParseConfigFile(args.ConfigFile)
 	if err != nil {
 		return fmt.Errorf("configuration error: %v", err)
 	}
+	privConfigFilename := genPrivConfigFilename(args.ConfigFile)
+	log.Println("private settings file:", privConfigFilename)
 	password, err := ReadPassword(privConfigFilename)
 	if err != nil {
 		return err
@@ -61,6 +75,12 @@ func runMain() error {
 		<-fsEvents
 	}
 	return nil
+}
+
+func genPrivConfigFilename(confFilename string) string {
+	dirname, filename := filepath.Split(confFilename)
+	bareFilename := strings.TrimSuffix(filename, ".yaml")
+	return filepath.Join(dirname, bareFilename+"-priv.yaml")
 }
 
 func uploadFiles(api *CacophonyAPI, directory string) error {

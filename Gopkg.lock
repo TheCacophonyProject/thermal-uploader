@@ -3,6 +3,18 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/alexflint/go-arg"
+  packages = ["."]
+  revision = "59fccacb2679dde66e0b20ed65bd26178fcbf54e"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/alexflint/go-scalar"
+  packages = ["."]
+  revision = "e80c3b7ed292b052c7083b6fd7154a8422c33f65"
+
+[[projects]]
+  branch = "master"
   name = "github.com/rjeczalik/notify"
   packages = ["."]
   revision = "1aa3b9de8d8410413787ea2573433b6fed5f3685"
@@ -22,6 +34,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5a1e81cad16c11fb3ae96a153a73a66670dc358a0d12e56c661e5d499f0c45f2"
+  inputs-digest = "aa9ce6f805079d16139b8e076075c204d11b16075d9ebbefdd5d489fa5433f9c"
   solver-name = "gps-cdcl"
   solver-version = 1
