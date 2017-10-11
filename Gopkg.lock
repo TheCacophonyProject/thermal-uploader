@@ -3,6 +3,18 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/TheCacophonyProject/go-cptv"
+  packages = ["."]
+  revision = "1c46f1b86aa474833885988bad51f33ba49ac664"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/TheCacophonyProject/lepton3"
+  packages = ["."]
+  revision = "6072007c52aa6487766f1a5c66eb3221a8d881e0"
+
+[[projects]]
+  branch = "master"
   name = "github.com/alexflint/go-arg"
   packages = ["."]
   revision = "59fccacb2679dde66e0b20ed65bd26178fcbf54e"
@@ -21,9 +33,21 @@
 
 [[projects]]
   branch = "master"
+  name = "golang.org/x/net"
+  packages = ["context"]
+  revision = "a04bdaca5b32abe1c069418fb7088ae607de5bd0"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
   revision = "314a259e304ff91bd6985da2a7149bbf91237993"
+
+[[projects]]
+  branch = "v2"
+  name = "gopkg.in/tomb.v2"
+  packages = ["."]
+  revision = "d5d1b5820637886def9eef33e03a27a9f166942c"
 
 [[projects]]
   branch = "v2"
@@ -31,9 +55,16 @@
   packages = ["."]
   revision = "eb3733d160e74a9c7e442f435eb3bea458e1d19f"
 
+[[projects]]
+  branch = "v2"
+  name = "periph.io/x/periph"
+  packages = ["conn","conn/gpio","conn/i2c","conn/i2c/i2creg","conn/mmr","conn/pin","conn/spi","conn/spi/spireg","devices","devices/lepton/cci","devices/lepton/internal"]
+  revision = "a5370d2227a0b687c67b5e751eef053908b20f59"
+  source = "https://github.com/TheCacophonyProject/periph.git"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "aa9ce6f805079d16139b8e076075c204d11b16075d9ebbefdd5d489fa5433f9c"
+  inputs-digest = "58f81e88018b824d15938cad22eb43cef51ad10d134a5b2673ccf259f4046a42"
   solver-name = "gps-cdcl"
   solver-version = 1

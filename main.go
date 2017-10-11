@@ -3,12 +3,16 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	cptv "github.com/TheCacophonyProject/go-cptv"
 	arg "github.com/alexflint/go-arg"
 	"github.com/rjeczalik/notify"
 )
@@ -96,6 +100,13 @@ func uploadFiles(api *CacophonyAPI, directory string) error {
 
 func uploadFile(api *CacophonyAPI, filename string) error {
 	log.Printf("uploading: %s", filename)
+
+	info, err := extractCPTVInfo(filename)
+	if err != nil {
+		return err
+	}
+	log.Printf("ts=%s duration=%ds", info.timestamp, info.duration)
+
 	f, err := os.Open(filename)
 	if os.IsNotExist(err) {
 		// File disappeared since the event was generated. Ignore.
@@ -104,9 +115,52 @@ func uploadFile(api *CacophonyAPI, filename string) error {
 		return err
 	}
 	defer f.Close()
-	if err := api.UploadThermalRaw(f); err != nil {
+	br := bufio.NewReader(f)
+	if err := api.UploadThermalRaw(info, br); err != nil {
 		return err
 	}
 	log.Printf("upload complete: %s", filename)
 	return os.Remove(filename)
+}
+
+type cptvInfo struct {
+	timestamp time.Time
+	duration  int
+}
+
+func extractCPTVInfo(filename string) (*cptvInfo, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// TODO: use the higher level cptv.Reader type (when it exists!)
+	p, err := cptv.NewParser(bufio.NewReader(file))
+	if err != nil {
+		return nil, err
+	}
+	fields, err := p.Header()
+	if err != nil {
+		return nil, err
+	}
+	timestamp, err := fields.Timestamp(cptv.Timestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	frames := 0
+	for {
+		_, _, err := p.Frame()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		frames++
+	}
+	return &cptvInfo{
+		timestamp: timestamp,
+		duration:  frames / 9,
+	}, nil
 }
