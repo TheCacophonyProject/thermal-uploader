@@ -10,6 +10,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"strconv"
 )
 
 // NewAPI creates a CacophonyAPI instance and obtains a fresh JSON Web
@@ -124,13 +125,15 @@ func (api *CacophonyAPI) newToken() error {
 	return nil
 }
 
-func (api *CacophonyAPI) UploadThermalRaw(r io.Reader) error {
+func (api *CacophonyAPI) UploadThermalRaw(info *cptvInfo, r io.Reader) error {
 	buf := new(bytes.Buffer)
 	w := multipart.NewWriter(buf)
 
 	// JSON encoded "data" parameter.
 	if dataBuf, err := json.Marshal(map[string]string{
-		"type": "thermalRaw",
+		"type":              "thermalRaw",
+		"duration":          strconv.Itoa(info.duration),
+		"recordingDateTime": info.timestamp.Format("2006-02-01 15:04:05-0700"),
 	}); err != nil {
 		return err
 	} else {
