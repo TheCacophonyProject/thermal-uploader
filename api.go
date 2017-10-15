@@ -133,7 +133,7 @@ func (api *CacophonyAPI) UploadThermalRaw(info *cptvInfo, r io.Reader) error {
 	if dataBuf, err := json.Marshal(map[string]string{
 		"type":              "thermalRaw",
 		"duration":          strconv.Itoa(info.duration),
-		"recordingDateTime": info.timestamp.Format("2006-02-01 15:04:05-0700"),
+		"recordingDateTime": info.timestamp.Format("2006-01-02 15:04:05-0700"),
 	}); err != nil {
 		return err
 	} else {
