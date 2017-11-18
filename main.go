@@ -105,7 +105,8 @@ func uploadFile(api *CacophonyAPI, filename string) error {
 
 	info, err := extractCPTVInfo(filename)
 	if err != nil {
-		return err
+		log.Println("failed to extract CPTV info from file")
+		return os.Remove(filename)
 	}
 	log.Printf("ts=%s duration=%ds", info.timestamp, info.duration)
 
