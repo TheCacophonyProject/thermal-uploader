@@ -19,8 +19,14 @@ import (
 
 const cptvGlob = "*.cptv"
 
+var version = "No version provided"
+
 type Args struct {
 	ConfigFile string `arg:"-c,--config" help:"path to configuration file"`
+}
+
+func (Args) Version() string {
+	return version
 }
 
 func procArgs() Args {
@@ -41,6 +47,7 @@ func runMain() error {
 	log.SetFlags(0) // Removes default timestamp flag
 
 	args := procArgs()
+	log.Printf("running version: %s", version)
 	conf, err := ParseConfigFile(args.ConfigFile)
 	if err != nil {
 		return fmt.Errorf("configuration error: %v", err)
