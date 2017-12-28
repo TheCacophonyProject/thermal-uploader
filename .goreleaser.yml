@@ -1,0 +1,25 @@
+project_name: thermal-uploader
+release:
+  github:
+    owner: TheCacophonyProject
+    name: thermal-uploader
+  name_template: '{{.Tag}}'
+builds:
+- goos:
+  - linux
+  goarch:
+  - arm
+  goarm:
+  - "7"
+  main: .
+  ldflags: -s -w -X main.version={{.Version}}
+  binary: thermal-uploader
+archive:
+  name_template: '{{ .ProjectName }}_{{ .Version }}'
+  format: tar.gz
+  files:
+  - thermal-uploader.service
+  - thermal-uploader-TEMPLATE.yaml
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+dist: dist
