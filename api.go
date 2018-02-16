@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -163,7 +165,13 @@ func (api *CacophonyAPI) UploadThermalRaw(info *cptvInfo, r io.Reader) error {
 	if err != nil {
 		return err
 	}
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	bodyString := string(bodyBytes)
 	resp.Body.Close()
+	if resp.StatusCode != 200 {
+		log.Printf("status code: %d, body: %s", resp.StatusCode, bodyString)
+		return errors.New("non 200 status code")
+	}
 	return nil
 }
 

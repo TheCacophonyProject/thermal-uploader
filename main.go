@@ -18,6 +18,7 @@ import (
 )
 
 const cptvGlob = "*.cptv"
+const failedUploadsDir = "failed-uploads"
 
 var version = "No version provided"
 
@@ -69,6 +70,9 @@ func runMain() error {
 			return err
 		}
 	}
+
+	log.Println("making failed uploads directory")
+	os.MkdirAll(filepath.Join(conf.Directory, failedUploadsDir), 0755)
 
 	log.Println("watching", conf.Directory)
 	fsEvents := make(chan notify.EventInfo, 1)
@@ -126,11 +130,17 @@ func uploadFile(api *CacophonyAPI, filename string) error {
 	}
 	defer f.Close()
 	br := bufio.NewReader(f)
-	if err := api.UploadThermalRaw(info, br); err != nil {
-		return err
+	for i := 1; i <= 3; i++ {
+		if err := api.UploadThermalRaw(info, br); err != nil {
+			log.Printf("upload failed, trying again")
+		} else {
+			log.Printf("upload complete: %s", filename)
+			return os.Remove(filename)
+		}
 	}
-	log.Printf("upload complete: %s", filename)
-	return os.Remove(filename)
+	log.Printf("upload failed 3 times, moving file to failed uploads folder")
+	dir, name := filepath.Split(filename)
+	return os.Rename(filename, filepath.Join(dir, failedUploadsDir, name))
 }
 
 type cptvInfo struct {
