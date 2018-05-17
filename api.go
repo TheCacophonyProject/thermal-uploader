@@ -13,6 +13,11 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strconv"
+	"time"
+)
+
+const (
+	timeout = 30 // timeout in seconds for uploads
 )
 
 // NewAPI creates a CacophonyAPI instance and obtains a fresh JSON Web
@@ -161,6 +166,7 @@ func (api *CacophonyAPI) UploadThermalRaw(info *cptvInfo, r io.Reader) error {
 	req.Header.Set("Authorization", api.token)
 
 	client := new(http.Client)
+	client.Timeout = time.Duration(timeout) * time.Second
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
