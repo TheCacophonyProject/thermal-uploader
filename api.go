@@ -8,10 +8,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"strconv"
+	"time"
 )
+
+const timeout = 30 * time.Second
 
 // NewAPI creates a CacophonyAPI instance and obtains a fresh JSON Web
 // Token. If no password is given then the device is registered.
@@ -158,12 +163,23 @@ func (api *CacophonyAPI) UploadThermalRaw(info *cptvInfo, r io.Reader) error {
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	req.Header.Set("Authorization", api.token)
 
-	client := new(http.Client)
+	client := &http.Client{
+		Timeout: timeout,
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		bodyString := string(bodyBytes)
+		log.Printf("status code: %d, body:\n%s", resp.StatusCode, bodyString)
+		return errors.New("non 200 status code")
+	}
 	return nil
 }
 
