@@ -130,10 +130,10 @@ func uploadFile(api *CacophonyAPI, filename string) error {
 	}
 	defer f.Close()
 	br := bufio.NewReader(f)
-	for i := 3; i >= 1; i-- {
+	for remainingTries := 2; remainingTries >= 0; remainingTries-- {
 		if err := api.UploadThermalRaw(info, br); err != nil {
-			if i >= 2 {
-				log.Printf("upload failed, trying %d more times", i-1)
+			if remainingTries >= 1 {
+				log.Printf("upload failed, trying %d more times", remainingTries)
 			}
 		} else {
 			log.Printf("upload complete: %s", filename)
