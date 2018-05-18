@@ -3,12 +3,9 @@ Description=Cacophony Project Thermal Video uploader
 After=multi-user.target network.target
 
 [Service]
-ExecStart=/usr/local/bin/thermal-uploader
-
-# Restart every 5s on failure and never give up.
+ExecStart=/usr/bin/thermal-uploader
 Restart=on-failure
 RestartSec=5s
-StartLimitIntervalSec=0
 
 [Install]
 WantedBy=multi-user.target

@@ -14,12 +14,20 @@ builds:
   main: .
   ldflags: -s -w -X main.version={{.Version}}
   binary: thermal-uploader
-archive:
-  name_template: '{{ .ProjectName }}_{{ .Version }}'
-  format: tar.gz
+
+nfpm:
+  vendor: The Cacophony Project
+  homepage: http://cacophony.org.nz/
+  maintainer: Menno Finlay-Smits <menno@cacophony.org.nz>
+  description: Upload thermal video footage to Cacophony Project API server
+  license: GPL v3.0
+  name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}"
+  formats:
+    - deb
+  bindir: /usr/bin
   files:
-  - thermal-uploader.service
-  - thermal-uploader-TEMPLATE.yaml
+    "thermal-uploader.service": "/etc/systemd/system/thermal-uploader.service"
+
 checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
 dist: dist
