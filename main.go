@@ -103,7 +103,7 @@ func genPrivConfigFilename(confFilename string) string {
 func uploadFiles(api *CacophonyAPI, directory string) error {
 	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
 	for _, filename := range matches {
-		err := uploadFile(api, filename)
+		err := uploadFileWithRetries(api, filename)
 		if err != nil {
 			return err
 		}
@@ -111,7 +111,7 @@ func uploadFiles(api *CacophonyAPI, directory string) error {
 	return nil
 }
 
-func uploadFile(api *CacophonyAPI, filename string) error {
+func uploadFileWithRetries(api *CacophonyAPI, filename string) error {
 	log.Printf("uploading: %s", filename)
 
 	info, err := extractCPTVInfo(filename)
@@ -121,6 +121,23 @@ func uploadFile(api *CacophonyAPI, filename string) error {
 	}
 	log.Printf("ts=%s duration=%ds", info.timestamp, info.duration)
 
+	for remainingTries := 2; remainingTries >= 0; remainingTries-- {
+		err := uploadFile(api, filename, info)
+		if err == nil {
+			log.Printf("upload complete: %s", filename)
+			os.Remove(filename)
+			return nil
+		}
+		if remainingTries >= 1 {
+			log.Printf("upload failed, trying %d more times", remainingTries)
+		}
+	}
+	log.Printf("upload failed multiple times, moving file to failed uploads folder")
+	dir, name := filepath.Split(filename)
+	return os.Rename(filename, filepath.Join(dir, failedUploadsDir, name))
+}
+
+func uploadFile(api *CacophonyAPI, filename string, info *cptvInfo) error {
 	f, err := os.Open(filename)
 	if os.IsNotExist(err) {
 		// File disappeared since the event was generated. Ignore.
@@ -129,20 +146,7 @@ func uploadFile(api *CacophonyAPI, filename string) error {
 		return err
 	}
 	defer f.Close()
-	br := bufio.NewReader(f)
-	for remainingTries := 2; remainingTries >= 0; remainingTries-- {
-		if err := api.UploadThermalRaw(info, br); err != nil {
-			if remainingTries >= 1 {
-				log.Printf("upload failed, trying %d more times", remainingTries)
-			}
-		} else {
-			log.Printf("upload complete: %s", filename)
-			return os.Remove(filename)
-		}
-	}
-	log.Printf("upload failed multiple times, moving file to failed uploads folder")
-	dir, name := filepath.Split(filename)
-	return os.Rename(filename, filepath.Join(dir, failedUploadsDir, name))
+	return api.UploadThermalRaw(info, bufio.NewReader(f))
 }
 
 type cptvInfo struct {
