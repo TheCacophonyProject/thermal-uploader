@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"log"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -26,6 +27,23 @@ func NewAPI(serverURL, group, deviceName, password string) (*CacophonyAPI, error
 		group:      group,
 		deviceName: deviceName,
 		password:   password,
+		client: &http.Client{
+			Transport: &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				DialContext: (&net.Dialer{
+					Timeout:   timeout, // connection timeout
+					KeepAlive: 30 * time.Second,
+					DualStack: true,
+				}).DialContext,
+
+				TLSHandshakeTimeout:   timeout,
+				ResponseHeaderTimeout: timeout,
+				ExpectContinueTimeout: 1 * time.Second,
+
+				MaxIdleConns:    5,
+				IdleConnTimeout: 90 * time.Second,
+			},
+		},
 	}
 	if password == "" {
 		err := api.register()
@@ -49,6 +67,8 @@ type CacophonyAPI struct {
 	password       string
 	token          string
 	justRegistered bool
+
+	client *http.Client
 }
 
 func (api *CacophonyAPI) Password() string {
@@ -73,7 +93,7 @@ func (api *CacophonyAPI) register() error {
 	if err != nil {
 		return err
 	}
-	postResp, err := http.Post(
+	postResp, err := api.client.Post(
 		api.serverURL+"/api/v1/devices",
 		"application/json",
 		bytes.NewReader(payload),
@@ -108,7 +128,7 @@ func (api *CacophonyAPI) newToken() error {
 	if err != nil {
 		return err
 	}
-	postResp, err := http.Post(
+	postResp, err := api.client.Post(
 		api.serverURL+"/authenticate_device",
 		"application/json",
 		bytes.NewReader(payload),
@@ -135,16 +155,16 @@ func (api *CacophonyAPI) UploadThermalRaw(info *cptvInfo, r io.Reader) error {
 	w := multipart.NewWriter(buf)
 
 	// JSON encoded "data" parameter.
-	if dataBuf, err := json.Marshal(map[string]string{
+	dataBuf, err := json.Marshal(map[string]string{
 		"type":              "thermalRaw",
 		"duration":          strconv.Itoa(info.duration),
 		"recordingDateTime": info.timestamp.Format("2006-01-02 15:04:05-0700"),
-	}); err != nil {
+	})
+	if err != nil {
 		return err
-	} else {
-		if err := w.WriteField("data", string(dataBuf)); err != nil {
-			return err
-		}
+	}
+	if err := w.WriteField("data", string(dataBuf)); err != nil {
+		return err
 	}
 
 	// Add the file as a new MIME part.
@@ -163,10 +183,7 @@ func (api *CacophonyAPI) UploadThermalRaw(info *cptvInfo, r io.Reader) error {
 	req.Header.Set("Content-Type", w.FormDataContentType())
 	req.Header.Set("Authorization", api.token)
 
-	client := &http.Client{
-		Timeout: timeout,
-	}
-	resp, err := client.Do(req)
+	resp, err := api.client.Do(req)
 	if err != nil {
 		return err
 	}
