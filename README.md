@@ -7,7 +7,7 @@ recordings are typically created by the
 
 ## Releases
 
-The software uses the [GoReleaser](https://goreleaser.com) tool to
+This software uses the [GoReleaser](https://goreleaser.com) tool to
 automate releases. To produce a release:
 
 * Ensure that the `GITHUB_TOKEN` environment variable is set with a
@@ -16,6 +16,6 @@ automate releases. To produce a release:
 * Tag the release with an annotated tag. For example:
   `git tag -a "v1.4" -m "1.4 release"`
 * Push the tag to Github: `git push --tags origin`
-* Run `goreleaser`
+* Run `goreleaser --rm-dist`
 
 The configuration for GoReleaser can be found in `.goreleaser.yml`.
