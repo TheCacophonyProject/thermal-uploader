@@ -14,7 +14,9 @@ type Config struct {
 	ServerURL  string `yaml:"server-url"`
 	Group      string `yaml:"group"`
 	DeviceName string `yaml:"device-name"`
+	UserName   string `yaml:"user-name"`
 	Directory  string `yaml:"directory"`
+	IsDevice   bool
 }
 
 func (conf *Config) Validate() error {
@@ -24,8 +26,11 @@ func (conf *Config) Validate() error {
 	if conf.Group == "" {
 		return errors.New("group missing")
 	}
-	if conf.DeviceName == "" {
-		return errors.New("device-name missing")
+	if conf.DeviceName == "" && conf.UserName == "" {
+		return errors.New("both device-name and user-name missing")
+	}
+	if conf.DeviceName != "" && conf.UserName != "" {
+		return errors.New("both device-name and user-name are set")
 	}
 	if conf.Directory == "" {
 		return errors.New("directory missing")
@@ -55,6 +60,7 @@ func ParseConfig(buf []byte) (*Config, error) {
 	if err := conf.Validate(); err != nil {
 		return nil, err
 	}
+	conf.IsDevice = conf.DeviceName != ""
 	return conf, nil
 }
 

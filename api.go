@@ -21,12 +21,20 @@ const timeout = 30 * time.Second
 
 // NewAPI creates a CacophonyAPI instance and obtains a fresh JSON Web
 // Token. If no password is given then the device is registered.
-func NewAPI(serverURL, group, deviceName, password string) (*CacophonyAPI, error) {
+func NewAPI(serverURL, group, deviceName, userName, password string) (*CacophonyAPI, error) {
+	isDevice := deviceName != ""
+	var name string
+	if isDevice {
+		name = deviceName
+	} else {
+		name = userName
+	}
 	api := &CacophonyAPI{
-		serverURL:  serverURL,
-		group:      group,
-		deviceName: deviceName,
-		password:   password,
+		serverURL: serverURL,
+		group:     group,
+		name:      name,
+		isDevice:  isDevice,
+		password:  password,
 		client: &http.Client{
 			Transport: &http.Transport{
 				Proxy: http.ProxyFromEnvironment,
@@ -63,10 +71,11 @@ func NewAPI(serverURL, group, deviceName, password string) (*CacophonyAPI, error
 type CacophonyAPI struct {
 	serverURL      string
 	group          string
-	deviceName     string
+	name           string
 	password       string
 	token          string
 	justRegistered bool
+	isDevice       bool
 
 	client *http.Client
 }
@@ -79,6 +88,13 @@ func (api *CacophonyAPI) JustRegistered() bool {
 	return api.justRegistered
 }
 
+func (api *CacophonyAPI) getRegUrl() string {
+	if api.isDevice {
+		return api.serverURL + "/api/v1/devices"
+	}
+	return api.serverURL + "/api/v1/users"
+}
+
 func (api *CacophonyAPI) register() error {
 	if api.password != "" {
 		return errors.New("already registered")
@@ -86,15 +102,15 @@ func (api *CacophonyAPI) register() error {
 
 	password := randString(20)
 	payload, err := json.Marshal(map[string]string{
-		"group":      api.group,
-		"devicename": api.deviceName,
-		"password":   password,
+		"group":           api.group,
+		api.getTypeName(): api.name,
+		"password":        password,
 	})
 	if err != nil {
 		return err
 	}
 	postResp, err := api.client.Post(
-		api.serverURL+"/api/v1/devices",
+		api.getRegUrl(),
 		"application/json",
 		bytes.NewReader(payload),
 	)
@@ -117,19 +133,33 @@ func (api *CacophonyAPI) register() error {
 	return nil
 }
 
+func (api *CacophonyAPI) getAuthURL() string {
+	if api.isDevice {
+		return api.serverURL + "/authenticate_device"
+	}
+	return api.serverURL + "/authenticate_user"
+}
+
+func (api *CacophonyAPI) getTypeName() string {
+	if api.isDevice {
+		return "devicename"
+	}
+	return "username"
+}
+
 func (api *CacophonyAPI) newToken() error {
 	if api.password == "" {
 		return errors.New("no password set")
 	}
 	payload, err := json.Marshal(map[string]string{
-		"devicename": api.deviceName,
-		"password":   api.password,
+		api.getTypeName(): api.name,
+		"password":        api.password,
 	})
 	if err != nil {
 		return err
 	}
 	postResp, err := api.client.Post(
-		api.serverURL+"/authenticate_device",
+		api.getAuthURL(),
 		"application/json",
 		bytes.NewReader(payload),
 	)
@@ -144,7 +174,7 @@ func (api *CacophonyAPI) newToken() error {
 		return fmt.Errorf("decode: %v", err)
 	}
 	if !resp.Success {
-		return fmt.Errorf("registration failed: %v", resp.message())
+		return fmt.Errorf("failed getting new token: %v", resp.message())
 	}
 	api.token = resp.Token
 	return nil
@@ -176,7 +206,12 @@ func (api *CacophonyAPI) UploadThermalRaw(info *cptvInfo, r io.Reader) error {
 
 	w.Close()
 
-	req, err := http.NewRequest("POST", api.serverURL+"/api/v1/recordings", buf)
+	var req *http.Request
+	if api.isDevice {
+		req, err = http.NewRequest("POST", api.serverURL+"/api/v1/recordings", buf)
+	} else {
+		req, err = http.NewRequest("POST", api.serverURL+"/api/v1/recordings/"+info.devicename, buf)
+	}
 	if err != nil {
 		return err
 	}
