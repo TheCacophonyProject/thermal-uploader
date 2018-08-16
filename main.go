@@ -121,7 +121,7 @@ func uploadFileWithRetries(api *CacophonyAPI, filename string) error {
 		return os.Remove(filename)
 	}
 	if !api.isDevice && info.devicename == "" {
-		log.Println("failed to extract devicename from file so can't upload as a user. Deletign CPTV file")
+		log.Println("failed to extract devicename from file so can't upload as a user. Deleting CPTV file")
 		return os.Remove(filename)
 	}
 	log.Printf("ts=%s duration=%ds", info.timestamp, info.duration)
