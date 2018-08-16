@@ -16,7 +16,6 @@ type Config struct {
 	DeviceName string `yaml:"device-name"`
 	UserName   string `yaml:"user-name"`
 	Directory  string `yaml:"directory"`
-	IsDevice   bool
 }
 
 func (conf *Config) Validate() error {
@@ -60,7 +59,6 @@ func ParseConfig(buf []byte) (*Config, error) {
 	if err := conf.Validate(); err != nil {
 		return nil, err
 	}
-	conf.IsDevice = conf.DeviceName != ""
 	return conf, nil
 }
 
