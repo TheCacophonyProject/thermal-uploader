@@ -47,12 +47,12 @@ func NewAPI(serverURL, group, deviceName, userName, password string) (*Cacophony
 	api.isDevice = deviceName != ""
 	if api.isDevice {
 		api.name = deviceName
-		api.typeName = "deviceName"
+		api.typeName = "devicename"
 		api.regURL = api.serverURL + "/api/v1/devices"
 		api.authURL = api.serverURL + "/authenticate_device"
 	} else {
 		api.name = userName
-		api.typeName = "userName"
+		api.typeName = "username"
 		api.regURL = api.serverURL + "/api/v1/users"
 		api.authURL = api.serverURL + "/authenticate_user"
 	}
