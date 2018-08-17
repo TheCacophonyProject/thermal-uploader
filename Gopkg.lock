@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/TheCacophonyProject/go-cptv"
   packages = ["."]
-  revision = "51b9fb35069166dd6d32bb8d62f5e44e3351f223"
+  revision = "396da391ab80249a5717c3051b10e3b3639e9dd9"
 
 [[projects]]
   branch = "master"

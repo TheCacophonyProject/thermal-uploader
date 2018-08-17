@@ -1,5 +1,7 @@
 # go-cptv
 
+[![Build Status](https://api.travis-ci.com/TheCacophonyProject/go-cptv.svg?branch=master)](https://travis-ci.com/TheCacophonyProject/go-cptv)
+
 This package implements a Go package for generating and consuming
 Cacophony Project Thermal Video (CPTV) files. For more details on
 these files see the [specification](https://github.com/TheCacophonyProject/go-cptv/blob/master/SPEC.md).
@@ -47,7 +49,7 @@ import (
 )
 
 
-func readFrames() ([]*lepton3.Frame), error) {
+func readFrames() ([]*lepton3.Frame, error) {
     f, err := os.Open("some.cptv")
     if err != nil {
         return nil, err
