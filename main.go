@@ -5,7 +5,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	cptv "github.com/TheCacophonyProject/go-cptv"
-	"github.com/TheCacophonyProject/lepton3"
 	arg "github.com/alexflint/go-arg"
 	"github.com/rjeczalik/notify"
 )
@@ -172,18 +170,11 @@ func extractCPTVInfo(filename string) (*cptvInfo, error) {
 		return nil, err
 	}
 
-	frames := 0
-	for {
-		frame := new(lepton3.Frame)
-		err := r.ReadFrame(frame)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return nil, err
-		}
-		frames++
+	frames, err := r.FrameCount()
+	if err != nil {
+		return nil, err
 	}
+
 	return &cptvInfo{
 		timestamp:  r.Timestamp(),
 		duration:   frames / 9,
