@@ -5,7 +5,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -59,7 +58,7 @@ func runMain() error {
 	if err != nil {
 		return err
 	}
-	api, err := NewAPI(conf.ServerURL, conf.Group, conf.DeviceName, password)
+	api, err := NewAPI(conf.ServerURL, conf.Group, conf.DeviceName, conf.UserName, password)
 	if err != nil {
 		return err
 	}
@@ -119,6 +118,10 @@ func uploadFileWithRetries(api *CacophonyAPI, filename string) error {
 		log.Println("failed to extract CPTV info from file. Deleting CPTV file")
 		return os.Remove(filename)
 	}
+	if !api.isDevice && info.devicename == "" {
+		log.Println("failed to extract devicename from file so can't upload as a user. Deleting CPTV file")
+		return os.Remove(filename)
+	}
 	log.Printf("ts=%s duration=%ds", info.timestamp, info.duration)
 
 	for remainingTries := 2; remainingTries >= 0; remainingTries-- {
@@ -150,43 +153,31 @@ func uploadFile(api *CacophonyAPI, filename string, info *cptvInfo) error {
 }
 
 type cptvInfo struct {
-	timestamp time.Time
-	duration  int
+	timestamp  time.Time
+	duration   int
+	devicename string
 }
 
 func extractCPTVInfo(filename string) (*cptvInfo, error) {
-	file, err := os.Open(filename)
+	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer f.Close()
 
-	// TODO: use the higher level cptv.Reader type (when it exists!)
-	p, err := cptv.NewParser(bufio.NewReader(file))
-	if err != nil {
-		return nil, err
-	}
-	fields, err := p.Header()
-	if err != nil {
-		return nil, err
-	}
-	timestamp, err := fields.Timestamp(cptv.Timestamp)
+	r, err := cptv.NewReader(f)
 	if err != nil {
 		return nil, err
 	}
 
-	frames := 0
-	for {
-		_, _, err := p.Frame()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, err
-		}
-		frames++
+	frames, err := r.FrameCount()
+	if err != nil {
+		return nil, err
 	}
+
 	return &cptvInfo{
-		timestamp: timestamp,
-		duration:  frames / 9,
+		timestamp:  r.Timestamp(),
+		duration:   frames / 9,
+		devicename: r.DeviceName(),
 	}, nil
 }
