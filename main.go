@@ -23,9 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
-	cptv "github.com/TheCacophonyProject/go-cptv"
 	arg "github.com/alexflint/go-arg"
 	"github.com/rjeczalik/notify"
 )
@@ -127,19 +125,8 @@ func uploadFiles(api *CacophonyAPI, directory string) error {
 func uploadFileWithRetries(api *CacophonyAPI, filename string) error {
 	log.Printf("uploading: %s", filename)
 
-	info, err := extractCPTVInfo(filename)
-	if err != nil {
-		log.Println("failed to extract CPTV info from file. Deleting CPTV file")
-		return os.Remove(filename)
-	}
-	if !api.isDevice && info.devicename == "" {
-		log.Println("failed to extract devicename from file so can't upload as a user. Deleting CPTV file")
-		return os.Remove(filename)
-	}
-	log.Printf("ts=%s duration=%ds", info.timestamp, info.duration)
-
 	for remainingTries := 2; remainingTries >= 0; remainingTries-- {
-		err := uploadFile(api, filename, info)
+		err := uploadFile(api, filename)
 		if err == nil {
 			log.Printf("upload complete: %s", filename)
 			os.Remove(filename)
@@ -154,7 +141,7 @@ func uploadFileWithRetries(api *CacophonyAPI, filename string) error {
 	return os.Rename(filename, filepath.Join(dir, failedUploadsDir, name))
 }
 
-func uploadFile(api *CacophonyAPI, filename string, info *cptvInfo) error {
+func uploadFile(api *CacophonyAPI, filename string) error {
 	f, err := os.Open(filename)
 	if os.IsNotExist(err) {
 		// File disappeared since the event was generated. Ignore.
@@ -163,35 +150,5 @@ func uploadFile(api *CacophonyAPI, filename string, info *cptvInfo) error {
 		return err
 	}
 	defer f.Close()
-	return api.UploadThermalRaw(info, bufio.NewReader(f))
-}
-
-type cptvInfo struct {
-	timestamp  time.Time
-	duration   int
-	devicename string
-}
-
-func extractCPTVInfo(filename string) (*cptvInfo, error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	r, err := cptv.NewReader(f)
-	if err != nil {
-		return nil, err
-	}
-
-	frames, err := r.FrameCount()
-	if err != nil {
-		return nil, err
-	}
-
-	return &cptvInfo{
-		timestamp:  r.Timestamp(),
-		duration:   frames / 9,
-		devicename: r.DeviceName(),
-	}, nil
+	return api.UploadThermalRaw(bufio.NewReader(f))
 }
