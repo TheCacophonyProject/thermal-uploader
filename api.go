@@ -27,7 +27,6 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -186,15 +185,13 @@ func (api *CacophonyAPI) getPOSTUrl(devicename string) string {
 	return api.serverURL + "/api/v1/recordings/" + devicename
 }
 
-func (api *CacophonyAPI) UploadThermalRaw(info *cptvInfo, r io.Reader) error {
+func (api *CacophonyAPI) UploadThermalRaw(r io.Reader) error {
 	buf := new(bytes.Buffer)
 	w := multipart.NewWriter(buf)
 
 	// JSON encoded "data" parameter.
 	dataBuf, err := json.Marshal(map[string]string{
-		"type":              "thermalRaw",
-		"duration":          strconv.Itoa(info.duration),
-		"recordingDateTime": info.timestamp.Format("2006-01-02 15:04:05-0700"),
+		"type": "thermalRaw",
 	})
 	if err != nil {
 		return err
@@ -212,7 +209,7 @@ func (api *CacophonyAPI) UploadThermalRaw(info *cptvInfo, r io.Reader) error {
 
 	w.Close()
 
-	req, err := http.NewRequest("POST", api.getPOSTUrl(info.devicename), buf)
+	req, err := http.NewRequest("POST", api.getPOSTUrl(api.name), buf)
 	if err != nil {
 		return err
 	}
