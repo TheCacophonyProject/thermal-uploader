@@ -64,6 +64,7 @@
     "github.com/TheCacophonyProject/go-api",
     "github.com/alexflint/go-arg",
     "github.com/rjeczalik/notify",
+    "gopkg.in/yaml.v2",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
