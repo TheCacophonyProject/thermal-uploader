@@ -24,26 +24,10 @@ import (
 )
 
 type Config struct {
-	ServerURL  string `yaml:"server-url"`
-	Group      string `yaml:"group"`
-	DeviceName string `yaml:"device-name"`
-	UserName   string `yaml:"user-name"`
-	Directory  string `yaml:"directory"`
+	Directory string `yaml:"directory"`
 }
 
 func (conf *Config) Validate() error {
-	if conf.ServerURL == "" {
-		return errors.New("server-url missing")
-	}
-	if conf.Group == "" {
-		return errors.New("group missing")
-	}
-	if conf.DeviceName == "" && conf.UserName == "" {
-		return errors.New("both device-name and user-name missing")
-	}
-	if conf.DeviceName != "" && conf.UserName != "" {
-		return errors.New("both device-name and user-name are set")
-	}
 	if conf.Directory == "" {
 		return errors.New("directory missing")
 	}
