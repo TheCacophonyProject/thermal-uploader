@@ -22,8 +22,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/TheCacophonyProject/go-api"
 	arg "github.com/alexflint/go-arg"
 	"github.com/rjeczalik/notify"
 )
@@ -60,26 +60,15 @@ func runMain() error {
 
 	args := procArgs()
 	log.Printf("running version: %s", version)
+
+	api, err := api.NewAPIFromConfig(args.ConfigFile)
+	if err != nil {
+		return err
+	}
+
 	conf, err := ParseConfigFile(args.ConfigFile)
 	if err != nil {
 		return fmt.Errorf("configuration error: %v", err)
-	}
-	privConfigFilename := genPrivConfigFilename(args.ConfigFile)
-	log.Println("private settings file:", privConfigFilename)
-	password, err := ReadPassword(privConfigFilename)
-	if err != nil {
-		return err
-	}
-	api, err := NewAPI(conf.ServerURL, conf.Group, conf.DeviceName, conf.UserName, password)
-	if err != nil {
-		return err
-	}
-	if api.JustRegistered() {
-		log.Println("first time registration - saving password")
-		err := WritePassword(privConfigFilename, api.Password())
-		if err != nil {
-			return err
-		}
 	}
 
 	log.Println("making failed uploads directory")
@@ -105,13 +94,7 @@ func runMain() error {
 	return nil
 }
 
-func genPrivConfigFilename(confFilename string) string {
-	dirname, filename := filepath.Split(confFilename)
-	bareFilename := strings.TrimSuffix(filename, ".yaml")
-	return filepath.Join(dirname, bareFilename+"-priv.yaml")
-}
-
-func uploadFiles(api *CacophonyAPI, directory string) error {
+func uploadFiles(api *api.CacophonyAPI, directory string) error {
 	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
 	for _, filename := range matches {
 		err := uploadFileWithRetries(api, filename)
@@ -122,7 +105,7 @@ func uploadFiles(api *CacophonyAPI, directory string) error {
 	return nil
 }
 
-func uploadFileWithRetries(api *CacophonyAPI, filename string) error {
+func uploadFileWithRetries(api *api.CacophonyAPI, filename string) error {
 	log.Printf("uploading: %s", filename)
 
 	for remainingTries := 2; remainingTries >= 0; remainingTries-- {
@@ -141,7 +124,7 @@ func uploadFileWithRetries(api *CacophonyAPI, filename string) error {
 	return os.Rename(filename, filepath.Join(dir, failedUploadsDir, name))
 }
 
-func uploadFile(api *CacophonyAPI, filename string) error {
+func uploadFile(api *api.CacophonyAPI, filename string) error {
 	f, err := os.Open(filename)
 	if os.IsNotExist(err) {
 		// File disappeared since the event was generated. Ignore.

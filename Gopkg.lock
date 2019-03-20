@@ -3,37 +3,68 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:a10b52a8de7bc2acc45d474b0cc28484be69d2e37470bf76bb20baec08357b63"
+  name = "github.com/TheCacophonyProject/go-api"
+  packages = ["."]
+  pruneopts = ""
+  revision = "1ccbd4981ef19335573e6a48c3d69d31fb5514c5"
+
+[[projects]]
+  branch = "master"
+  digest = "1:36abd763fe94645976d319c0cb8cd6c81f749c1ab18f7e20099fa3d7d7e6074c"
   name = "github.com/alexflint/go-arg"
   packages = ["."]
+  pruneopts = ""
   revision = "59fccacb2679dde66e0b20ed65bd26178fcbf54e"
 
 [[projects]]
   branch = "master"
+  digest = "1:d685b3da1fa270912d06e97f577632540a52fcf26048a3a46215c3ce5218e56f"
   name = "github.com/alexflint/go-scalar"
   packages = ["."]
+  pruneopts = ""
   revision = "e80c3b7ed292b052c7083b6fd7154a8422c33f65"
 
 [[projects]]
+  digest = "1:a4724325f1d3bd4127dac415e980c7c28f2e08f4d0ba2513e7de9980906604ef"
+  name = "github.com/gofrs/flock"
+  packages = ["."]
+  pruneopts = ""
+  revision = "392e7fae8f1b0bdbd67dad7237d23f618feb6dbb"
+  version = "v0.7.1"
+
+[[projects]]
   branch = "master"
+  digest = "1:bf86d5f2b3685204644297de784b352a9a60d2044ea68731e2819e2320343454"
   name = "github.com/rjeczalik/notify"
   packages = ["."]
+  pruneopts = ""
   revision = "1aa3b9de8d8410413787ea2573433b6fed5f3685"
 
 [[projects]]
   branch = "master"
+  digest = "1:e9f555036bb1a2f61074131371313348581fa1b643c0e5f8c0a436bf7ce6db69"
   name = "golang.org/x/sys"
   packages = ["unix"]
+  pruneopts = ""
   revision = "314a259e304ff91bd6985da2a7149bbf91237993"
 
 [[projects]]
-  branch = "v2"
+  digest = "1:cedccf16b71e86db87a24f8d4c70b0a855872eb967cb906a66b95de56aefbd0d"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  revision = "eb3733d160e74a9c7e442f435eb3bea458e1d19f"
+  pruneopts = ""
+  revision = "51d6538a90f86fe93ac480b35f37b2be17fef232"
+  version = "v2.2.2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "aa9ce6f805079d16139b8e076075c204d11b16075d9ebbefdd5d489fa5433f9c"
+  input-imports = [
+    "github.com/TheCacophonyProject/go-api",
+    "github.com/alexflint/go-arg",
+    "github.com/rjeczalik/notify",
+    "gopkg.in/yaml.v2",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
