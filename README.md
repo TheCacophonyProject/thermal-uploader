@@ -7,15 +7,14 @@ recordings are typically created by the
 
 ## Releases
 
-This software uses the [GoReleaser](https://goreleaser.com) tool to
-automate releases. To produce a release:
+Releases are built using TravisCI. To create a release:
 
-* Ensure that the `GITHUB_TOKEN` environment variable is set with a
-  Github personal access token which allows access to the Cacophony
-  Project repositories.
 * Tag the release with an annotated tag. For example:
   `git tag -a "v1.4" -m "1.4 release"`
-* Push the tag to Github: `git push --tags origin`
-* Run `goreleaser --rm-dist`
+* Push the tag to Github: `git push origin v1.4`
+* TravisCI will see the pushed tag, run the tests, create a release
+  package and create a
+  [Github Release](https://github.com/TheCacophonyProject/thermal-uploader/releases).
 
-The configuration for GoReleaser can be found in `.goreleaser.yml`.
+For more about the mechanics of how releases work, see `travis.yml`
+and `.goreleaser.yml`.
