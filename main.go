@@ -91,7 +91,6 @@ func runMain() error {
 		// files.
 		<-fsEvents
 	}
-	return nil
 }
 
 func uploadFiles(api *api.CacophonyAPI, directory string) error {
