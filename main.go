@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/TheCacophonyProject/go-api"
-	"github.com/TheCacophonyProject/modemd/connectionRequester"
+	"github.com/TheCacophonyProject/modemd/connrequester"
 	arg "github.com/alexflint/go-arg"
 	"github.com/rjeczalik/notify"
 )
@@ -33,8 +33,8 @@ import (
 const (
 	cptvGlob          = "*.cptv"
 	failedUploadsDir  = "failed-uploads"
-	connectionTimeout = time.Second * 10
-	connectionRetry   = time.Second * 10
+	connectionTimeout = time.Minute * 2
+	connectionRetry   = time.Minute * 10
 )
 
 var version = "No version provided"
@@ -67,7 +67,7 @@ func runMain() error {
 	args := procArgs()
 	log.Printf("running version: %s", version)
 
-	cr := connectionRequester.NewConnectionRequester()
+	cr := connrequester.NewConnectionRequester()
 	log.Println("requesting internet connection")
 	cr.Start()
 	cr.WaitUntilUpLoop(connectionTimeout, connectionRetry, -1)
