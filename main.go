@@ -22,14 +22,20 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/TheCacophonyProject/go-api"
+	"github.com/TheCacophonyProject/modemd/connrequester"
 	arg "github.com/alexflint/go-arg"
 	"github.com/rjeczalik/notify"
 )
 
-const cptvGlob = "*.cptv"
-const failedUploadsDir = "failed-uploads"
+const (
+	cptvGlob                = "*.cptv"
+	failedUploadsDir        = "failed-uploads"
+	connectionTimeout       = time.Minute * 2
+	connectionRetryInterval = time.Minute * 10
+)
 
 var version = "No version provided"
 
@@ -61,10 +67,17 @@ func runMain() error {
 	args := procArgs()
 	log.Printf("running version: %s", version)
 
+	cr := connrequester.NewConnectionRequester()
+	log.Println("requesting internet connection")
+	cr.Start()
+	cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
+	log.Println("internet connection made")
+
 	api, err := api.NewAPIFromConfig(args.ConfigFile)
 	if err != nil {
 		return err
 	}
+	cr.Stop()
 
 	conf, err := ParseConfigFile(args.ConfigFile)
 	if err != nil {
@@ -83,9 +96,12 @@ func runMain() error {
 	for {
 		// Check for files to upload first in case there are CPTV
 		// files around when the uploader starts.
+		cr.Start()
+		cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
 		if err := uploadFiles(api, conf.Directory); err != nil {
 			return err
 		}
+		cr.Stop()
 		// Block until there's activity in the directory. We don't
 		// care what it is as uploadFiles will only act on CPTV
 		// files.
