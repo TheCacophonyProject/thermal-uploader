@@ -31,10 +31,10 @@ import (
 )
 
 const (
-	cptvGlob          = "*.cptv"
-	failedUploadsDir  = "failed-uploads"
-	connectionTimeout = time.Minute * 2
-	connectionRetry   = time.Minute * 10
+	cptvGlob                = "*.cptv"
+	failedUploadsDir        = "failed-uploads"
+	connectionTimeout       = time.Minute * 2
+	connectionRetryInterval = time.Minute * 10
 )
 
 var version = "No version provided"
@@ -70,7 +70,7 @@ func runMain() error {
 	cr := connrequester.NewConnectionRequester()
 	log.Println("requesting internet connection")
 	cr.Start()
-	cr.WaitUntilUpLoop(connectionTimeout, connectionRetry, -1)
+	cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
 	log.Println("internet connection made")
 
 	api, err := api.NewAPIFromConfig(args.ConfigFile)
@@ -97,7 +97,7 @@ func runMain() error {
 		// Check for files to upload first in case there are CPTV
 		// files around when the uploader starts.
 		cr.Start()
-		cr.WaitUntilUpLoop(connectionTimeout, connectionRetry, -1)
+		cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
 		if err := uploadFiles(api, conf.Directory); err != nil {
 			return err
 		}
