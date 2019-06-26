@@ -27,7 +27,8 @@ nfpm:
   bindir: /usr/bin
   files:
     "thermal-uploader.service": "/etc/systemd/system/thermal-uploader.service"
-
+  scripts:
+    postinstall: setdeviceconfig.py
 checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
 dist: dist
