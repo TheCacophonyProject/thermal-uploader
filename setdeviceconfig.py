@@ -17,11 +17,10 @@ def split_yaml_params(yaml_raw, params):
     removed_yaml = ""
     param_regex = re.compile("^\\s*(\\S*):")
     comment_regex = re.compile("^\\s*#")
-    empty_line = re.compile("^\\s*\\n")
     for line in yaml_raw.splitlines(True):
         if comment_regex.match(line):
             comment_chunk += line
-        elif empty_line.match(line):
+        elif line.split() == "":
             clean_yaml += comment_chunk
             comment_chunk = ""
         else:
@@ -64,6 +63,7 @@ def main():
 
     if os.path.isfile(private_config):
         move(private_config, device_priv_config)
+
 
 if __name__ == "__main__":
     main()
