@@ -3,6 +3,7 @@
 import os
 import re
 import yaml
+from shutil import move
 
 
 def split_yaml_params(yaml_raw, params):
@@ -37,15 +38,18 @@ def split_yaml_params(yaml_raw, params):
 
 def main():
     device_config = "/etc/cacophony/device.yaml"
+    device_priv_config = "/etc/cacophony/device-priv.yaml"
+
     config = "/etc/thermal-uploader.yaml"
+    private_config = "/etc/thermal-uploader-priv.yaml"
     device_params = ["server-url", "group", "device-name"]
 
     if os.path.isfile(device_config):
-        print(f"{device_config} already exists")
+        print("{} already exists".format(device_config))
         exit()
 
     if not os.path.isfile(config):
-        print(f"{config} does not exist")
+        print("{}} does not exist".format(config))
         exit()
 
     with open(config, "r+") as f:
@@ -58,6 +62,8 @@ def main():
     with open(config, "w") as f:
         f.write(clean_yaml)
 
+    if os.path.isfile(private_config):
+        move(private_config, device_priv_config)
 
 if __name__ == "__main__":
     main()

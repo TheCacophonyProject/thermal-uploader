@@ -73,7 +73,7 @@ func runMain() error {
 	cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
 	log.Println("internet connection made")
 
-	api, err := api.NewAPIFromConfig(args.ConfigFile)
+	api, err := api.NewAPI()
 	if err != nil {
 		return err
 	}
