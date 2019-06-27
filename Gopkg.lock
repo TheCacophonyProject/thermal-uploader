@@ -3,85 +3,73 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a10b52a8de7bc2acc45d474b0cc28484be69d2e37470bf76bb20baec08357b63"
   name = "github.com/TheCacophonyProject/go-api"
   packages = ["."]
-  pruneopts = ""
-  revision = "1ccbd4981ef19335573e6a48c3d69d31fb5514c5"
+  revision = "f75d610181035080b5552703221d44effc22d2ce"
 
 [[projects]]
   branch = "master"
-  digest = "1:663b1a545662bd83dd760b23b6215ff69b35dc29961a83243f6473e60830fb58"
   name = "github.com/TheCacophonyProject/modemd"
   packages = ["connrequester"]
-  pruneopts = ""
   revision = "ae5b0f2eb76015727631b223fe2c509a7bd615db"
 
 [[projects]]
   branch = "master"
-  digest = "1:36abd763fe94645976d319c0cb8cd6c81f749c1ab18f7e20099fa3d7d7e6074c"
   name = "github.com/alexflint/go-arg"
   packages = ["."]
-  pruneopts = ""
   revision = "59fccacb2679dde66e0b20ed65bd26178fcbf54e"
 
 [[projects]]
   branch = "master"
-  digest = "1:d685b3da1fa270912d06e97f577632540a52fcf26048a3a46215c3ce5218e56f"
   name = "github.com/alexflint/go-scalar"
   packages = ["."]
-  pruneopts = ""
   revision = "e80c3b7ed292b052c7083b6fd7154a8422c33f65"
 
 [[projects]]
-  digest = "1:cc1255e2fef3819bfab3540277001e602892dd431ef9ab5499bcdbc425923d64"
   name = "github.com/godbus/dbus"
   packages = ["."]
-  pruneopts = ""
   revision = "2ff6f7ffd60f0f2410b3105864bdd12c7894f844"
   version = "v5.0.1"
 
 [[projects]]
-  digest = "1:a4724325f1d3bd4127dac415e980c7c28f2e08f4d0ba2513e7de9980906604ef"
   name = "github.com/gofrs/flock"
   packages = ["."]
-  pruneopts = ""
   revision = "392e7fae8f1b0bdbd67dad7237d23f618feb6dbb"
   version = "v0.7.1"
 
 [[projects]]
   branch = "master"
-  digest = "1:bf86d5f2b3685204644297de784b352a9a60d2044ea68731e2819e2320343454"
   name = "github.com/rjeczalik/notify"
   packages = ["."]
-  pruneopts = ""
   revision = "1aa3b9de8d8410413787ea2573433b6fed5f3685"
 
 [[projects]]
+  name = "github.com/spf13/afero"
+  packages = [".","mem"]
+  revision = "588a75ec4f32903aa5e39a2619ba6a4631e28424"
+  version = "v1.2.2"
+
+[[projects]]
   branch = "master"
-  digest = "1:e9f555036bb1a2f61074131371313348581fa1b643c0e5f8c0a436bf7ce6db69"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  pruneopts = ""
   revision = "314a259e304ff91bd6985da2a7149bbf91237993"
 
 [[projects]]
-  digest = "1:cedccf16b71e86db87a24f8d4c70b0a855872eb967cb906a66b95de56aefbd0d"
+  name = "golang.org/x/text"
+  packages = ["internal/gen","internal/triegen","internal/ucd","transform","unicode/cldr","unicode/norm"]
+  revision = "342b2e1fbaa52c93f31447ad2c6abc048c63e475"
+  version = "v0.3.2"
+
+[[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  pruneopts = ""
   revision = "51d6538a90f86fe93ac480b35f37b2be17fef232"
   version = "v2.2.2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  input-imports = [
-    "github.com/TheCacophonyProject/go-api",
-    "github.com/TheCacophonyProject/modemd/connrequester",
-    "github.com/alexflint/go-arg",
-    "github.com/rjeczalik/notify",
-    "gopkg.in/yaml.v2",
-  ]
+  inputs-digest = "3d10a8e41d5fd20433fb258da768a1e1f98c4e7ae07c2257dfbc67b6fec539aa"
   solver-name = "gps-cdcl"
   solver-version = 1
