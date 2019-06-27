@@ -6,6 +6,13 @@ import yaml
 from shutil import move
 
 
+DEVICE_CONFIG = "/etc/cacophony/device.yaml"
+DEVICE_PRIV_CONFIG = "/etc/cacophony/device-priv.yaml"
+CONFIG = "/etc/thermal-uploader.yaml"
+PRIVATE_CONFIG = "/etc/thermal-uploader-priv.yaml"
+DEVICE_PARAMS = ["server-url", "group", "device-name"]
+
+
 def split_yaml_params(yaml_raw, params):
     """ 
         returns yaml without specified params and yaml from params
@@ -15,12 +22,12 @@ def split_yaml_params(yaml_raw, params):
     comment_chunk = ""
     clean_yaml = ""
     removed_yaml = ""
-    param_regex = re.compile("^\\s*(\\S*):")
+    param_regex = re.compile("^\\s*(\\S+):")
     comment_regex = re.compile("^\\s*#")
     for line in yaml_raw.splitlines(True):
         if comment_regex.match(line):
             comment_chunk += line
-        elif line.split() == "":
+        elif line.strip() == "":
             clean_yaml += comment_chunk
             comment_chunk = ""
         else:
@@ -36,33 +43,26 @@ def split_yaml_params(yaml_raw, params):
 
 
 def main():
-    device_config = "/etc/cacophony/device.yaml"
-    device_priv_config = "/etc/cacophony/device-priv.yaml"
-
-    config = "/etc/thermal-uploader.yaml"
-    private_config = "/etc/thermal-uploader-priv.yaml"
-    device_params = ["server-url", "group", "device-name"]
-
-    if os.path.isfile(device_config):
-        print("{} already exists".format(device_config))
+    if os.path.isfile(DEVICE_CONFIG):
+        print("{} already exists".format(DEVICE_CONFIG))
         exit()
 
-    if not os.path.isfile(config):
-        print("{}} does not exist".format(config))
+    if not os.path.isfile(CONFIG):
+        print("{}} does not exist".format(CONFIG))
         exit()
 
-    with open(config, "r+") as f:
+    with open(CONFIG, "r+") as f:
         config_contents = f.read()
 
-    clean_yaml, device_yaml = split_yaml_params(config_contents, device_params)
-    with open(device_config, "w+") as f:
+    clean_yaml, device_yaml = split_yaml_params(config_contents, DEVICE_PARAMS)
+    with open(DEVICE_CONFIG, "w+") as f:
         f.write(device_yaml)
 
-    with open(config, "w") as f:
+    with open(CONFIG, "w") as f:
         f.write(clean_yaml)
 
-    if os.path.isfile(private_config):
-        move(private_config, device_priv_config)
+    if os.path.isfile(PRIVATE_CONFIG):
+        move(PRIVATE_CONFIG, DEVICE_PRIV_CONFIG)
 
 
 if __name__ == "__main__":
