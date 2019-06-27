@@ -48,7 +48,7 @@ def main():
         exit()
 
     if not os.path.isfile(CONFIG):
-        print("{}} does not exist".format(CONFIG))
+        print("{} does not exist".format(CONFIG))
         exit()
 
     with open(CONFIG, "r+") as f:
