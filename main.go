@@ -73,8 +73,11 @@ func runMain() error {
 	cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
 	log.Println("internet connection made")
 
-	api, err := api.NewAPI()
-	if err != nil {
+	apiClient, err := api.New()
+	if api.IsNotRegisteredError(err) {
+		log.Println("device not registered. Exiting and waiting to be restarted")
+		os.Exit(0)
+	} else if err != nil {
 		return err
 	}
 	cr.Stop()
@@ -98,7 +101,7 @@ func runMain() error {
 		// files around when the uploader starts.
 		cr.Start()
 		cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
-		if err := uploadFiles(api, conf.Directory); err != nil {
+		if err := uploadFiles(apiClient, conf.Directory); err != nil {
 			return err
 		}
 		cr.Stop()
@@ -109,10 +112,10 @@ func runMain() error {
 	}
 }
 
-func uploadFiles(api *api.CacophonyAPI, directory string) error {
+func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
 	for _, filename := range matches {
-		err := uploadFileWithRetries(api, filename)
+		err := uploadFileWithRetries(apiClient, filename)
 		if err != nil {
 			return err
 		}
@@ -120,11 +123,11 @@ func uploadFiles(api *api.CacophonyAPI, directory string) error {
 	return nil
 }
 
-func uploadFileWithRetries(api *api.CacophonyAPI, filename string) error {
+func uploadFileWithRetries(apiClient *api.CacophonyAPI, filename string) error {
 	log.Printf("uploading: %s", filename)
 
 	for remainingTries := 2; remainingTries >= 0; remainingTries-- {
-		err := uploadFile(api, filename)
+		err := uploadFile(apiClient, filename)
 		if err == nil {
 			log.Printf("upload complete: %s", filename)
 			os.Remove(filename)
@@ -139,7 +142,7 @@ func uploadFileWithRetries(api *api.CacophonyAPI, filename string) error {
 	return os.Rename(filename, filepath.Join(dir, failedUploadsDir, name))
 }
 
-func uploadFile(api *api.CacophonyAPI, filename string) error {
+func uploadFile(apiClient *api.CacophonyAPI, filename string) error {
 	f, err := os.Open(filename)
 	if os.IsNotExist(err) {
 		// File disappeared since the event was generated. Ignore.
@@ -148,5 +151,5 @@ func uploadFile(api *api.CacophonyAPI, filename string) error {
 		return err
 	}
 	defer f.Close()
-	return api.UploadThermalRaw(bufio.NewReader(f))
+	return apiClient.UploadThermalRaw(bufio.NewReader(f))
 }
