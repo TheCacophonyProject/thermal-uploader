@@ -15,10 +15,10 @@ builds:
   ldflags: -s -w -X main.version={{.Version}}
   binary: thermal-uploader
 
-nfpm:
-  vendor: The Cacophony Project
+nfpms:
+- vendor: The Cacophony Project
   homepage: http://cacophony.org.nz/
-  maintainer: Menno Finlay-Smits <menno@cacophony.org.nz>
+  maintainer: Cacophony Developers <coredev@cacophony.org.nz>
   description: Upload thermal video footage to Cacophony Project API server
   license: GPL v3.0
   name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}"
