@@ -19,6 +19,7 @@ package main
 import (
 	"errors"
 	"io/ioutil"
+	"os"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -36,7 +37,9 @@ func (conf *Config) Validate() error {
 
 func ParseConfigFile(filename string) (*Config, error) {
 	buf, err := ioutil.ReadFile(filename)
-	if err != nil {
+	if os.IsNotExist(err) {
+		return ParseConfig([]byte{})
+	} else if err != nil {
 		return nil, err
 	}
 	return ParseConfig(buf)
