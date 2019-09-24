@@ -18,11 +18,6 @@ package main
 
 import (
 	"errors"
-<<<<<<< Updated upstream
-	"io/ioutil"
-	"os"
-=======
->>>>>>> Stashed changes
 
 	goconfig "github.com/TheCacophonyProject/go-config"
 )
@@ -37,16 +32,8 @@ func ParseConfig(configDir string) (*Config, error) {
 		return nil, err
 	}
 
-<<<<<<< Updated upstream
-func ParseConfigFile(filename string) (*Config, error) {
-	buf, err := ioutil.ReadFile(filename)
-	if os.IsNotExist(err) {
-		return ParseConfig([]byte{})
-	} else if err != nil {
-=======
 	thermalRecorder := goconfig.DefaultThermalRecorder()
 	if err := configRW.Unmarshal(goconfig.ThermalRecorderKey, &thermalRecorder); err != nil {
->>>>>>> Stashed changes
 		return nil, err
 	}
 
