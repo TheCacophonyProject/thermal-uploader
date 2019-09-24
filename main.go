@@ -24,6 +24,8 @@ import (
 	"path/filepath"
 	"time"
 
+	goconfig "github.com/TheCacophonyProject/go-config"
+
 	"github.com/TheCacophonyProject/go-api"
 	"github.com/TheCacophonyProject/modemd/connrequester"
 	arg "github.com/alexflint/go-arg"
@@ -40,7 +42,7 @@ const (
 var version = "No version provided"
 
 type Args struct {
-	ConfigFile string `arg:"-c,--config" help:"path to configuration file"`
+	ConfigDir string `arg:"-c,--config" help:"path to configuration directory"`
 }
 
 func (Args) Version() string {
@@ -49,7 +51,7 @@ func (Args) Version() string {
 
 func procArgs() Args {
 	var args Args
-	args.ConfigFile = "/etc/thermal-uploader.yaml"
+	args.ConfigDir = goconfig.DefaultConfigDir
 	arg.MustParse(&args)
 	return args
 }
@@ -82,7 +84,7 @@ func runMain() error {
 	}
 	cr.Stop()
 
-	conf, err := ParseConfigFile(args.ConfigFile)
+	conf, err := ParseConfig(args.ConfigDir)
 	if err != nil {
 		return fmt.Errorf("configuration error: %v", err)
 	}
