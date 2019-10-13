@@ -18,14 +18,34 @@ package main
 
 import (
 	"errors"
-	"io/ioutil"
-	"os"
 
-	yaml "gopkg.in/yaml.v2"
+	goconfig "github.com/TheCacophonyProject/go-config"
 )
 
 type Config struct {
 	Directory string `yaml:"directory"`
+}
+
+func ParseConfig(configDir string) (*Config, error) {
+	configRW, err := goconfig.New(configDir)
+	if err != nil {
+		return nil, err
+	}
+
+	thermalRecorder := goconfig.DefaultThermalRecorder()
+	if err := configRW.Unmarshal(goconfig.ThermalRecorderKey, &thermalRecorder); err != nil {
+		return nil, err
+	}
+
+	config := &Config{
+		Directory: thermalRecorder.OutputDir,
+	}
+
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
+	return config, nil
 }
 
 func (conf *Config) Validate() error {
@@ -33,27 +53,4 @@ func (conf *Config) Validate() error {
 		return errors.New("directory missing")
 	}
 	return nil
-}
-
-func ParseConfigFile(filename string) (*Config, error) {
-	buf, err := ioutil.ReadFile(filename)
-	if os.IsNotExist(err) {
-		return ParseConfig([]byte{})
-	} else if err != nil {
-		return nil, err
-	}
-	return ParseConfig(buf)
-}
-
-func ParseConfig(buf []byte) (*Config, error) {
-	conf := &Config{
-		Directory: "/var/spool/cptv",
-	}
-	if err := yaml.Unmarshal(buf, conf); err != nil {
-		return nil, err
-	}
-	if err := conf.Validate(); err != nil {
-		return nil, err
-	}
-	return conf, nil
 }
