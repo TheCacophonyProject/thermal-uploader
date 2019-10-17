@@ -131,12 +131,15 @@ func uploadFileWithRetries(apiClient *api.CacophonyAPI, filename string) error {
 	for remainingTries := 2; remainingTries >= 0; remainingTries-- {
 		err := uploadFile(apiClient, filename)
 		if err == nil {
-			log.Printf("upload complete: %s", filename)
-			os.Remove(filename)
+			log.Print("upload complete")
+			if err := os.Remove(filename); err != nil {
+				log.Printf("warning: failed to delete %s: %v", filename, err)
+			}
 			return nil
 		}
-		if remainingTries >= 1 {
-			log.Printf("upload failed, trying %d more times", remainingTries)
+		log.Printf("upload failed: %v", err)
+		if remainingTries > 0 {
+			log.Printf("trying %d more times", remainingTries)
 		}
 	}
 	log.Printf("upload failed multiple times, moving file to failed uploads folder")
