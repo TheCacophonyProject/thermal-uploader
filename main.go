@@ -157,7 +157,7 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
 	if len(matches) == 0 {
 		return true
 	}
-	// start at a random index incase a file fails for a reason
+	// start at a random index to avoid always failing on the same file
 	startIndex := rand.Intn(len(matches))
 	for i := 0; i < len(matches); i++ {
 		index := (startIndex + i) % len(matches)
