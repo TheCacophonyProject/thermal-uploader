@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
@@ -37,6 +38,8 @@ const (
 	failedUploadsDir        = "failed-uploads"
 	connectionTimeout       = time.Minute * 2
 	connectionRetryInterval = time.Minute * 10
+	failedRetryInterval     = time.Minute * 10
+	failedRetryMaxInterval  = time.Hour * 24
 )
 
 var version = "No version provided"
@@ -97,14 +100,36 @@ func runMain() error {
 	if err := notify.Watch(conf.Directory, fsEvents, notify.InCloseWrite, notify.InMovedTo); err != nil {
 		return err
 	}
+
+	nextFailedRetry := time.Now()
+	failedRetryAttempts := 0
+	var success bool
 	defer notify.Stop(fsEvents)
 	for {
 		// Check for files to upload first in case there are CPTV
 		// files around when the uploader starts.
 		cr.Start()
 		cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
-		if err := uploadFiles(apiClient, conf.Directory); err != nil {
+		if success, err = uploadFiles(apiClient, conf.Directory); err != nil {
 			return err
+		}
+
+		//try failed uploads again if succeeded
+		if success && time.Now().After(nextFailedRetry) {
+			if retryFailedUploads(apiClient, conf.Directory) {
+				failedRetryAttempts = 0
+				nextFailedRetry = time.Now()
+			} else {
+				failedRetryAttempts += 1
+				timeAddition := time.Duration(failedRetryInterval.Seconds()*float64(failedRetryAttempts*failedRetryAttempts)) * time.Second
+				if timeAddition.Seconds() > failedRetryMaxInterval.Seconds() {
+					nextFailedRetry = time.Now().Add(failedRetryMaxInterval)
+				} else {
+					nextFailedRetry = time.Now().Add(timeAddition)
+				}
+
+				log.Printf("Failed still failed try again after %v\n", nextFailedRetry)
+			}
 		}
 		cr.Stop()
 		// Block until there's activity in the directory. We don't
@@ -114,18 +139,44 @@ func runMain() error {
 	}
 }
 
-func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
+func uploadFiles(apiClient *api.CacophonyAPI, directory string) (bool, error) {
 	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
+	success := true
+	var err error
 	for _, filename := range matches {
-		err := uploadFileWithRetries(apiClient, filename)
+		success, err = uploadFileWithRetries(apiClient, filename)
 		if err != nil {
-			return err
+			return success, err
 		}
 	}
-	return nil
+	return success, nil
 }
 
-func uploadFileWithRetries(apiClient *api.CacophonyAPI, filename string) error {
+func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
+	matches, _ := filepath.Glob(filepath.Join(directory, failedUploadsDir, cptvGlob))
+	if len(matches) == 0 {
+		return true
+	}
+	// start at a random index incase a file fails for a reason
+	startIndex := rand.Intn(len(matches))
+	for i := 0; i < len(matches); i++ {
+		index := (startIndex + i) % len(matches)
+		filename := matches[index]
+		err := uploadFile(apiClient, filename)
+		if err != nil {
+			log.Printf("failed uploading failed recording %v: %v", filename, err)
+			return false
+		}
+		log.Printf("success uploading failed recording\n")
+
+		if err := os.Remove(filename); err != nil {
+			log.Printf("warning: failed to delete %s: %v", filename, err)
+		}
+	}
+	return true
+}
+
+func uploadFileWithRetries(apiClient *api.CacophonyAPI, filename string) (bool, error) {
 	log.Printf("uploading: %s", filename)
 
 	for remainingTries := 2; remainingTries >= 0; remainingTries-- {
@@ -135,7 +186,7 @@ func uploadFileWithRetries(apiClient *api.CacophonyAPI, filename string) error {
 			if err := os.Remove(filename); err != nil {
 				log.Printf("warning: failed to delete %s: %v", filename, err)
 			}
-			return nil
+			return true, nil
 		}
 		log.Printf("upload failed: %v", err)
 		if remainingTries > 0 {
@@ -144,7 +195,7 @@ func uploadFileWithRetries(apiClient *api.CacophonyAPI, filename string) error {
 	}
 	log.Printf("upload failed multiple times, moving file to failed uploads folder")
 	dir, name := filepath.Split(filename)
-	return os.Rename(filename, filepath.Join(dir, failedUploadsDir, name))
+	return false, os.Rename(filename, filepath.Join(dir, failedUploadsDir, name))
 }
 
 func uploadFile(apiClient *api.CacophonyAPI, filename string) error {
