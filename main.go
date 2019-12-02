@@ -121,14 +121,9 @@ func runMain() error {
 				nextFailedRetry = time.Now()
 			} else {
 				failedRetryAttempts += 1
-				timeAddition := time.Duration(failedRetryInterval.Seconds()*float64(failedRetryAttempts*failedRetryAttempts)) * time.Second
-				if timeAddition.Seconds() > failedRetryMaxInterval.Seconds() {
-					nextFailedRetry = time.Now().Add(failedRetryMaxInterval)
-				} else {
-					nextFailedRetry = time.Now().Add(timeAddition)
-				}
-
-				log.Printf("Failed still failed try again after %v\n", nextFailedRetry)
+				timeAddition := failedRetryInterval * time.Duration(failedRetryAttempts*failedRetryAttempts)
+				nextFailedRetry = time.Now().Add(minDuration(timeAddition, failedRetryMaxInterval))
+				log.Printf("Failed still failed try again after %v", nextFailedRetry)
 			}
 		}
 		cr.Stop()
@@ -136,6 +131,14 @@ func runMain() error {
 		// care what it is as uploadFiles will only act on CPTV
 		// files.
 		<-fsEvents
+	}
+}
+
+func minDuration(a, b time.Duration) time.Duration {
+	if a > b {
+		return b
+	} else {
+		return a
 	}
 }
 
@@ -167,7 +170,7 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
 			log.Printf("failed uploading failed recording %v: %v", filename, err)
 			return false
 		}
-		log.Printf("success uploading failed recording\n")
+		log.Print("success uploading failed recording")
 
 		if err := os.Remove(filename); err != nil {
 			log.Printf("warning: failed to delete %s: %v", filename, err)
