@@ -17,24 +17,27 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
-	goconfig "github.com/TheCacophonyProject/go-config"
-
 	"github.com/TheCacophonyProject/go-api"
+	goconfig "github.com/TheCacophonyProject/go-config"
 	"github.com/TheCacophonyProject/modemd/connrequester"
 	arg "github.com/alexflint/go-arg"
 	"github.com/rjeczalik/notify"
 )
 
 const (
-	cptvGlob                = "*.cptv"
+	defaultModel = "PI"
+	cptvGlob     = "*.cptv"
+	txtGlob      = "*.txt"
+
 	failedUploadsDir        = "failed-uploads"
 	connectionTimeout       = time.Minute * 2
 	connectionRetryInterval = time.Minute * 10
@@ -104,6 +107,8 @@ func runMain() error {
 	nextFailedRetry := time.Now()
 	failedRetryAttempts := 0
 	var success bool
+	globs := []string{cptvGlob, txtGlob}
+
 	defer notify.Stop(fsEvents)
 	for {
 		// Check for files to upload first in case there are CPTV
@@ -116,14 +121,17 @@ func runMain() error {
 
 		//try failed uploads again if succeeded
 		if success && time.Now().After(nextFailedRetry) {
-			if retryFailedUploads(apiClient, conf.Directory) {
-				failedRetryAttempts = 0
-				nextFailedRetry = time.Now()
-			} else {
-				failedRetryAttempts += 1
-				timeAddition := failedRetryInterval * time.Duration(failedRetryAttempts*failedRetryAttempts)
-				nextFailedRetry = time.Now().Add(minDuration(timeAddition, failedRetryMaxInterval))
-				log.Printf("Failed still failed try again after %v", nextFailedRetry)
+			for _, glob := range globs {
+				if retryFailedUploads(apiClient, conf.Directory, glob) {
+					failedRetryAttempts = 0
+					nextFailedRetry = time.Now()
+				} else {
+					failedRetryAttempts += 1
+					timeAddition := failedRetryInterval * time.Duration(failedRetryAttempts*failedRetryAttempts)
+					nextFailedRetry = time.Now().Add(minDuration(timeAddition, failedRetryMaxInterval))
+					log.Printf("Failed still failed try again after %v", nextFailedRetry)
+					break
+				}
 			}
 		}
 		cr.Stop()
@@ -142,21 +150,48 @@ func minDuration(a, b time.Duration) time.Duration {
 	}
 }
 
-func uploadFiles(apiClient *api.CacophonyAPI, directory string) (bool, error) {
-	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
-	success := true
-	var err error
-	for _, filename := range matches {
-		success, err = uploadFileWithRetries(apiClient, filename)
-		if err != nil {
-			return success, err
-		}
+func metaFileExists(filename string) (bool, string) {
+	metafile := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".txt"
+	if _, err := os.Stat(metafile); err != nil {
+		return false, ""
 	}
-	return success, nil
+	return true, metafile
 }
 
-func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
-	matches, _ := filepath.Glob(filepath.Join(directory, failedUploadsDir, cptvGlob))
+func getFileRecID(filename string) int {
+	_, baseName := filepath.Split(filename)
+	index := strings.Index(baseName, "-")
+
+	if index > 0 {
+		recID, _ := strconv.Atoi(baseName[:index])
+		return recID
+	}
+	return 0
+}
+
+func uploadFiles(apiClient *api.CacophonyAPI, directory string) (bool, error) {
+	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
+	var err error
+	for _, filename := range matches {
+		job := newUploadJob(filename)
+
+		// upload cptv
+		err = uploadFileWithRetries(apiClient, job)
+
+		// upload metadata
+		if err == nil && job.canUploadMeta() {
+			job.uploadMeta = true
+			err = uploadFileWithRetries(apiClient, job)
+		}
+		if err != nil {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func retryFailedUploads(apiClient *api.CacophonyAPI, directory, glob string) bool {
+	matches, _ := filepath.Glob(filepath.Join(directory, failedUploadsDir, glob))
 	if len(matches) == 0 {
 		return true
 	}
@@ -165,31 +200,35 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
 	for i := 0; i < len(matches); i++ {
 		index := (startIndex + i) % len(matches)
 		filename := matches[index]
-		err := uploadFile(apiClient, filename)
+		job := newUploadJob(filename)
+
+		err := job.upload(apiClient)
+
+		if err == nil && glob == cptvGlob && job.canUploadMeta() {
+			job.uploadMeta = true
+			metaErr := job.upload(apiClient)
+			if metaErr != nil {
+				log.Printf("Uploading metadata still failing for recording %v: %v", job.recID, job.metafile)
+				job.renameMeta(false)
+			}
+		}
+
 		if err != nil {
-			log.Printf("failed uploading failed recording %v: %v", filename, err)
+			log.Printf("Uploading still failing to upload %v, %v: %v", job.uploadType(), filename, err)
 			return false
 		}
-		log.Print("success uploading failed recording")
-
-		if err := os.Remove(filename); err != nil {
-			log.Printf("warning: failed to delete %s: %v", filename, err)
-		}
+		log.Print("success uploading failed")
 	}
 	return true
 }
 
-func uploadFileWithRetries(apiClient *api.CacophonyAPI, filename string) (bool, error) {
-	log.Printf("uploading: %s", filename)
-
+func uploadFileWithRetries(apiClient *api.CacophonyAPI, job *uploadJob) error {
+	log.Printf("uploading: %s", job.uploadName())
 	for remainingTries := 2; remainingTries >= 0; remainingTries-- {
-		err := uploadFile(apiClient, filename)
+		err := job.upload(apiClient)
 		if err == nil {
-			log.Print("upload complete")
-			if err := os.Remove(filename); err != nil {
-				log.Printf("warning: failed to delete %s: %v", filename, err)
-			}
-			return true, nil
+			log.Printf("upload complete %v", job.uploadName())
+			return nil
 		}
 		log.Printf("upload failed: %v", err)
 		if remainingTries > 0 {
@@ -197,18 +236,5 @@ func uploadFileWithRetries(apiClient *api.CacophonyAPI, filename string) (bool, 
 		}
 	}
 	log.Printf("upload failed multiple times, moving file to failed uploads folder")
-	dir, name := filepath.Split(filename)
-	return false, os.Rename(filename, filepath.Join(dir, failedUploadsDir, name))
-}
-
-func uploadFile(apiClient *api.CacophonyAPI, filename string) error {
-	f, err := os.Open(filename)
-	if os.IsNotExist(err) {
-		// File disappeared since the event was generated. Ignore.
-		return nil
-	} else if err != nil {
-		return err
-	}
-	defer f.Close()
-	return apiClient.UploadThermalRaw(bufio.NewReader(f))
+	return job.moveToFailed()
 }
