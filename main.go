@@ -22,7 +22,6 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -158,17 +157,6 @@ func metaFileExists(filename string) (bool, string) {
 	return true, metafile
 }
 
-func getFileRecID(filename string) int {
-	_, baseName := filepath.Split(filename)
-	index := strings.Index(baseName, "-")
-
-	if index > 0 {
-		recID, _ := strconv.Atoi(baseName[:index])
-		return recID
-	}
-	return 0
-}
-
 func uploadFiles(apiClient *api.CacophonyAPI, directory string) (bool, error) {
 	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
 	var err error
@@ -179,7 +167,7 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) (bool, error) {
 		err = uploadFileWithRetries(apiClient, job)
 
 		// upload metadata
-		if err == nil && job.canUploadMeta() {
+		if err == nil && job.canUploadMeta() && job.recID > 0 {
 			job.uploadMeta = true
 			err = uploadFileWithRetries(apiClient, job)
 		}
@@ -204,12 +192,13 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory, glob string) boo
 
 		err := job.upload(apiClient)
 
-		if err == nil && glob == cptvGlob && job.canUploadMeta() {
+		// if cptv type, try upload associated meta if it exists
+		if err == nil && glob == cptvGlob && job.canUploadMeta() && job.recID > 0 {
 			job.uploadMeta = true
 			metaErr := job.upload(apiClient)
 			if metaErr != nil {
 				log.Printf("Uploading metadata still failing for recording %v: %v", job.recID, job.metafile)
-				job.renameMeta(false)
+				job.moveMetaToFailed()
 			}
 		}
 

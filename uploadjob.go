@@ -30,12 +30,7 @@ func newUploadJob(filename string) *uploadJob {
     } else if extension == ".txt" {
         _, err := os.Stat(filename)
         exists := err == nil
-        var recID int
-        if exists {
-            recID = getFileRecID(filename)
-            log.Printf("got rec id of %v", recID)
-        }
-        return &uploadJob{filename: "", metafile: filename, hasMetaData: exists, uploadMeta: true, recID: recID}
+        return &uploadJob{filename: "", metafile: filename, hasMetaData: exists, uploadMeta: true}
     }
     return nil
 }
@@ -48,7 +43,7 @@ func (u *uploadJob) uploadType() string {
 }
 
 func (u *uploadJob) canUploadMeta() bool {
-    return u.recID > 0 && u.hasMetaData
+    return u.hasMetaData
 }
 
 func (u *uploadJob) uploadName() string {
@@ -70,7 +65,7 @@ func (u *uploadJob) upload(apiClient *api.CacophonyAPI) error {
     var err error
     if u.uploadMeta {
         if !u.canUploadMeta() {
-            return fmt.Errorf("Cannot upload %v, recID: %v", u.metafile, u.recID)
+            return fmt.Errorf("Cannot upload %v it doesn't exist", u.metafile)
         }
         err = uploadMeta(apiClient, u.metafile, u.recID)
     } else {
@@ -88,20 +83,9 @@ func (u *uploadJob) upload(apiClient *api.CacophonyAPI) error {
     }
 }
 
-func (u *uploadJob) renameMeta(toFailedDir bool) error {
+func (u *uploadJob) moveMetaToFailed() error {
     dir, baseName := filepath.Split(u.metafile)
-    var newMetaFile string
-    if strings.Index(baseName, "-") == -1 && u.recID != 0 {
-        newMetaFile = fmt.Sprintf("%v-%v", u.recID, baseName)
-    } else {
-        newMetaFile = u.metafile
-    }
-    if toFailedDir {
-        return os.Rename(u.metafile, filepath.Join(dir, failedUploadsDir, newMetaFile))
-    } else {
-        return os.Rename(u.metafile, newMetaFile)
-
-    }
+    return os.Rename(u.metafile, filepath.Join(dir, failedUploadsDir, baseName))
 }
 
 func uploadMeta(apiClient *api.CacophonyAPI, filename string, recID int) error {
@@ -112,7 +96,15 @@ func uploadMeta(apiClient *api.CacophonyAPI, filename string, recID int) error {
     if err != nil {
         return err
     }
-    meta.RecID = recID
+    if meta.RecID == 0 && recID == 0 {
+        return fmt.Errorf("Cannot upload metadata with rec id 0 %v", filename)
+    }
+
+    if meta.RecID == 0 {
+        meta.RecID = recID
+    }
+    fmt.Printf("meta rec id is %v", meta.RecID)
+
     modelName := meta.ModelName
     if modelName == "" {
         modelName = defaultModel
@@ -126,8 +118,7 @@ func uploadMeta(apiClient *api.CacophonyAPI, filename string, recID int) error {
             continue
         }
         var tr api.TrackResponse
-        tr, err = apiClient.AddTrack(recID, data, meta.Algorithm)
-
+        tr, err = apiClient.AddTrack(meta.RecID, data, meta.Algorithm)
         if err != nil {
             break
         }
@@ -135,7 +126,7 @@ func uploadMeta(apiClient *api.CacophonyAPI, filename string, recID int) error {
         if data["confident_tag"] != nil {
             model["all_class_confidences"] = data["all_class_confidences"]
             model["algorithmId"] = tr.AlgorithmId
-            _, err = apiClient.AddTrackTag(recID, tr.TrackID, true, data, model)
+            _, err = apiClient.AddTrackTag(meta.RecID, tr.TrackID, true, data, model)
 
             if err != nil {
                 break
@@ -207,7 +198,7 @@ func (u *uploadJob) moveToFailed() error {
         errFile = os.Rename(u.filename, filepath.Join(dir, failedUploadsDir, name))
     }
 
-    errMeta := u.renameMeta(true)
+    errMeta := u.moveMetaToFailed()
 
     if errFile != nil {
         return errFile
