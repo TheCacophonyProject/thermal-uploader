@@ -32,8 +32,7 @@ import (
 )
 
 const (
-	defaultModel = "PI"
-	cptvGlob     = "*.cptv"
+	cptvGlob = "*.cptv"
 
 	failedUploadsDir        = "failed-uploads"
 	connectionTimeout       = time.Minute * 2
@@ -103,19 +102,18 @@ func runMain() error {
 
 	nextFailedRetry := time.Now()
 	failedRetryAttempts := 0
-	var success bool
 	defer notify.Stop(fsEvents)
 	for {
 		// Check for files to upload first in case there are CPTV
 		// files around when the uploader starts.
 		cr.Start()
 		cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
-		if success, err = uploadFiles(apiClient, conf.Directory); err != nil {
+		if err = uploadFiles(apiClient, conf.Directory); err != nil {
 			return err
 		}
 
 		//try failed uploads again if succeeded
-		if success && time.Now().After(nextFailedRetry) {
+		if time.Now().After(nextFailedRetry) {
 			if retryFailedUploads(apiClient, conf.Directory) {
 				failedRetryAttempts = 0
 				nextFailedRetry = time.Now()
@@ -124,7 +122,6 @@ func runMain() error {
 				timeAddition := failedRetryInterval * time.Duration(failedRetryAttempts*failedRetryAttempts)
 				nextFailedRetry = time.Now().Add(minDuration(timeAddition, failedRetryMaxInterval))
 				log.Printf("Failed still failed try again after %v", nextFailedRetry)
-				break
 			}
 		}
 		cr.Stop()
@@ -133,7 +130,6 @@ func runMain() error {
 		// files.
 		<-fsEvents
 	}
-	return nil
 }
 
 func minDuration(a, b time.Duration) time.Duration {
@@ -144,17 +140,17 @@ func minDuration(a, b time.Duration) time.Duration {
 	}
 }
 
-func uploadFiles(apiClient *api.CacophonyAPI, directory string) (bool, error) {
+func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
 	var err error
 	for _, filename := range matches {
 		job := newUploadJob(filename)
 		err = uploadFileWithRetries(apiClient, job)
 		if err != nil {
-			return false, err
+			return err
 		}
 	}
-	return true, nil
+	return nil
 }
 
 func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
