@@ -22,7 +22,6 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/TheCacophonyProject/go-api"
@@ -35,7 +34,6 @@ import (
 const (
 	defaultModel = "PI"
 	cptvGlob     = "*.cptv"
-	txtGlob      = "*.txt"
 
 	failedUploadsDir        = "failed-uploads"
 	connectionTimeout       = time.Minute * 2
@@ -106,8 +104,6 @@ func runMain() error {
 	nextFailedRetry := time.Now()
 	failedRetryAttempts := 0
 	var success bool
-	globs := []string{cptvGlob, txtGlob}
-
 	defer notify.Stop(fsEvents)
 	for {
 		// Check for files to upload first in case there are CPTV
@@ -120,17 +116,15 @@ func runMain() error {
 
 		//try failed uploads again if succeeded
 		if success && time.Now().After(nextFailedRetry) {
-			for _, glob := range globs {
-				if retryFailedUploads(apiClient, conf.Directory, glob) {
-					failedRetryAttempts = 0
-					nextFailedRetry = time.Now()
-				} else {
-					failedRetryAttempts += 1
-					timeAddition := failedRetryInterval * time.Duration(failedRetryAttempts*failedRetryAttempts)
-					nextFailedRetry = time.Now().Add(minDuration(timeAddition, failedRetryMaxInterval))
-					log.Printf("Failed still failed try again after %v", nextFailedRetry)
-					break
-				}
+			if retryFailedUploads(apiClient, conf.Directory) {
+				failedRetryAttempts = 0
+				nextFailedRetry = time.Now()
+			} else {
+				failedRetryAttempts += 1
+				timeAddition := failedRetryInterval * time.Duration(failedRetryAttempts*failedRetryAttempts)
+				nextFailedRetry = time.Now().Add(minDuration(timeAddition, failedRetryMaxInterval))
+				log.Printf("Failed still failed try again after %v", nextFailedRetry)
+				break
 			}
 		}
 		cr.Stop()
@@ -139,6 +133,7 @@ func runMain() error {
 		// files.
 		<-fsEvents
 	}
+	return nil
 }
 
 func minDuration(a, b time.Duration) time.Duration {
@@ -149,28 +144,12 @@ func minDuration(a, b time.Duration) time.Duration {
 	}
 }
 
-func metaFileExists(filename string) (bool, string) {
-	metafile := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".txt"
-	if _, err := os.Stat(metafile); err != nil {
-		return false, ""
-	}
-	return true, metafile
-}
-
 func uploadFiles(apiClient *api.CacophonyAPI, directory string) (bool, error) {
 	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
 	var err error
 	for _, filename := range matches {
 		job := newUploadJob(filename)
-
-		// upload cptv
 		err = uploadFileWithRetries(apiClient, job)
-
-		// upload metadata
-		if err == nil && job.canUploadMeta() && job.recID > 0 {
-			job.uploadMeta = true
-			err = uploadFileWithRetries(apiClient, job)
-		}
 		if err != nil {
 			return false, err
 		}
@@ -178,8 +157,8 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) (bool, error) {
 	return true, nil
 }
 
-func retryFailedUploads(apiClient *api.CacophonyAPI, directory, glob string) bool {
-	matches, _ := filepath.Glob(filepath.Join(directory, failedUploadsDir, glob))
+func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
+	matches, _ := filepath.Glob(filepath.Join(directory, failedUploadsDir, cptvGlob))
 	if len(matches) == 0 {
 		return true
 	}
@@ -189,21 +168,10 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory, glob string) boo
 		index := (startIndex + i) % len(matches)
 		filename := matches[index]
 		job := newUploadJob(filename)
-
 		err := job.upload(apiClient)
 
-		// if cptv type, try upload associated meta if it exists
-		if err == nil && glob == cptvGlob && job.canUploadMeta() && job.recID > 0 {
-			job.uploadMeta = true
-			metaErr := job.upload(apiClient)
-			if metaErr != nil {
-				log.Printf("Uploading metadata still failing for recording %v: %v", job.recID, job.metafile)
-				job.moveMetaToFailed()
-			}
-		}
-
 		if err != nil {
-			log.Printf("Uploading still failing to upload %v, %v: %v", job.uploadType(), filename, err)
+			log.Printf("Uploading still failing to upload %v: %v", filename, err)
 			return false
 		}
 		log.Print("success uploading failed")
@@ -212,11 +180,11 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory, glob string) boo
 }
 
 func uploadFileWithRetries(apiClient *api.CacophonyAPI, job *uploadJob) error {
-	log.Printf("uploading: %s", job.uploadName())
+	log.Printf("uploading: %s", job.filename)
 	for remainingTries := 2; remainingTries >= 0; remainingTries-- {
 		err := job.upload(apiClient)
 		if err == nil {
-			log.Printf("upload complete %v", job.uploadName())
+			log.Printf("upload complete %v", job.filename)
 			return nil
 		}
 		log.Printf("upload failed: %v", err)
