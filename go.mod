@@ -1,9 +1,9 @@
 module github.com/TheCacophonyProject/thermal-uploader
 
-go 1.12
+go 1.15
 
 require (
-	github.com/TheCacophonyProject/go-api v0.0.0-20200210030345-afb3703f1621
+	github.com/TheCacophonyProject/go-api v0.0.0-20200817221859-afb3703f1621
 	github.com/TheCacophonyProject/go-config v1.6.0
 	github.com/TheCacophonyProject/go-cptv v0.0.0-20201110014247-4e8fc2c763ab // indirect
 	github.com/TheCacophonyProject/modemd v1.1.1
