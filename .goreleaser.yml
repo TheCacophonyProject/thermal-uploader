@@ -25,8 +25,11 @@ nfpms:
   formats:
     - deb
   bindir: /usr/bin
-  files:
-    "_release/thermal-uploader.service": "/etc/systemd/system/thermal-uploader.service"
+  contents:
+    - src: _release/thermal-uploader.service
+      dst: /etc/systemd/system/thermal-uploader.service
+  scripts:
+    postinstall: "_release/postinstall.sh"
 checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
 dist: dist
