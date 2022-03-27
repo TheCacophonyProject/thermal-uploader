@@ -32,8 +32,7 @@ import (
 )
 
 const (
-	cptvGlob = "*.cptv"
-
+	cptvGlob                = "*.avi"
 	failedUploadsDir        = "failed-uploads"
 	connectionTimeout       = time.Minute * 2
 	connectionRetryInterval = time.Minute * 10
