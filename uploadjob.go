@@ -56,7 +56,7 @@ func (u *uploadJob) convertMp4() error {
 	cmd := exec.Command("ffmpeg", "-y", // Yes to all
 		"-i", u.filename,
 		"-map_metadata", "-1", // strip out all (mostly) metadata
-		"-c:v", "copy",
+		"-vcodec", "libx264",
 		"-c:a", "copy",
 		name,
 	)
