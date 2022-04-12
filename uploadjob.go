@@ -21,6 +21,7 @@ type uploadJob struct {
 	recID       int
 	duration    int
 	hasMetaData bool
+	avi         bool
 }
 
 func metaFileExists(filename string) (bool, string) {
@@ -33,7 +34,9 @@ func metaFileExists(filename string) (bool, string) {
 
 func newUploadJob(filename string) *uploadJob {
 	exists, name := metaFileExists(filename)
-	return &uploadJob{filename: filename, metafile: name, hasMetaData: exists}
+	avi := filepath.Ext(filename) == ".avi"
+	u := &uploadJob{filename: filename, metafile: name, hasMetaData: exists, avi: avi}
+	return u
 }
 
 // delete the current file (CPTV or metadata)
@@ -94,16 +97,24 @@ func (u *uploadJob) getDuration() (int, error) {
 	return int(i), err
 }
 
+func (u *uploadJob) preprocess() error {
+	if u.avi {
+		err := u.convertMp4()
+		if err != nil {
+			u.moveToFailed()
+			return err
+		}
+		dur, err := u.getDuration()
+		if err == nil {
+			u.duration = dur
+		}
+	}
+	return nil
+}
+
 // upload the current file (CPTV or metadata) and delete it on success
 func (u *uploadJob) upload(apiClient *api.CacophonyAPI) error {
-	err := u.convertMp4()
-	if err != nil {
-		return err
-	}
-	dur, err := u.getDuration()
-	if err == nil {
-		u.duration = dur
-	}
+	var err error
 	u.recID, err = u.uploadCPTV(apiClient)
 	if err == nil {
 		u.delete()
@@ -125,26 +136,34 @@ func (u *uploadJob) uploadCPTV(apiClient *api.CacophonyAPI) (int, error) {
 			log.Printf("Error loading metadata %v\n", err)
 		}
 	}
-	file := filepath.Base(u.filename)
-	const layout = "2006-01-02_15.04.05"
-	file = file[:len(layout)]
-	t, err := time.Parse(layout, file)
-	log.Printf("Parsing %v filename %v error %v", file, t, err)
-	// 2022-01-18_22.15.41
-	f, err := os.Open(u.filename)
-	if err != nil {
-		return 0, err
+	vidType := "thermalRaw"
+	if u.avi {
+		vidType = "irRaw"
 	}
 	data := map[string]interface{}{
-		"type":              "irRaw",
-		"recordingDateTime": t,
+		"type": vidType,
 	}
+	if u.avi {
+		file := filepath.Base(u.filename)
+		// GP this will change
+		const layout = "2006-01-02_15.04.05"
+		file = file[:len(layout)]
+		t, err := time.Parse(layout, file)
+		if err != nil {
+			log.Printf("Coul not parse date time for %v %v", u.filename, err)
+		} else {
+			data["recordingDateTime"] = t
+		}
+	}
+
 	if u.duration > 0 {
 		data["duration"] = u.duration
 	}
 	if meta != nil {
 		data["metadata"] = meta
 	}
+
+	f, err := os.Open(u.filename)
 	defer f.Close()
 	return apiClient.UploadThermalRaw(bufio.NewReader(f), data)
 }
