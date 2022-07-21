@@ -145,15 +145,38 @@ func (u *uploadJob) uploadCPTV(apiClient *api.CacophonyAPI) (int, error) {
 	}
 	if u.avi {
 		file := filepath.Base(u.filename)
-		// GP this will change
+		file = strings.TrimSuffix(file, filepath.Ext(file))
 		const layout = "2006-01-02_15.04.05"
-		file = file[:len(layout)]
-		t, err := time.Parse(layout, file)
-		if err != nil {
-			log.Printf("Coul not parse date time for %v %v", u.filename, err)
+		extra := file[1+len(layout):]
+		index := strings.Index(extra, "_")
+		var deviceName string
+		version := "1.0"
+		var additionalMetadata = make(map[string]interface{})
+		if index == -1 {
+			deviceName = extra
 		} else {
-			data["recordingDateTime"] = t
+			deviceName = extra[:index]
+			version = extra[index+1:]
 		}
+		additionalMetadata["deviceName"] = deviceName
+		additionalMetadata["version"] = version
+
+		file = file[:len(layout)]
+
+		// GP this will change
+		if len(file) >= len(layout) {
+			file = file[:len(layout)]
+			t, err := time.Parse(layout, file)
+			if err != nil {
+				log.Printf("Could not parse date time for %v %v", u.filename, err)
+			} else {
+				data["recordingDateTime"] = t
+			}
+		} else {
+			log.Printf("Could not parse date time for %v", u.filename)
+
+		}
+		data["additionalMetadata"] = additionalMetadata
 	}
 
 	if u.duration > 0 {
