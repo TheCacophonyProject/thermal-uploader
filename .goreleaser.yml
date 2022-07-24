@@ -8,7 +8,9 @@ builds:
 - goos:
   - linux
   goarch:
-  - amd64
+  - arm
+  goarm:
+  - "7"
   main: .
   ldflags: -s -w -X main.version={{.Version}}
   binary: thermal-uploader
