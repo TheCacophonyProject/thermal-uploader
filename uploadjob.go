@@ -188,7 +188,7 @@ func (u *uploadJob) uploadCPTV(apiClient *api.CacophonyAPI) (int, error) {
 
 	f, err := os.Open(u.filename)
 	defer f.Close()
-	return apiClient.UploadThermalRaw(bufio.NewReader(f), data)
+	return apiClient.UploadVideo(bufio.NewReader(f), data)
 }
 
 type metadata map[string]interface{}
