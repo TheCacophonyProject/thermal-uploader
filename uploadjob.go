@@ -21,7 +21,8 @@ type uploadJob struct {
 	recID       int
 	duration    int
 	hasMetaData bool
-	avi         bool
+	convertAVI  bool
+	ir          bool
 }
 
 func metaFileExists(filename string) (bool, string) {
@@ -35,7 +36,8 @@ func metaFileExists(filename string) (bool, string) {
 func newUploadJob(filename string) *uploadJob {
 	exists, name := metaFileExists(filename)
 	avi := filepath.Ext(filename) == ".avi"
-	u := &uploadJob{filename: filename, metafile: name, hasMetaData: exists, avi: avi}
+	irVideo := avi || filepath.Ext(filename) == ".mp4"
+	u := &uploadJob{filename: filename, metafile: name, hasMetaData: exists, convertAVI: avi, ir: irVideo}
 	return u
 }
 
@@ -98,12 +100,14 @@ func (u *uploadJob) getDuration() (int, error) {
 }
 
 func (u *uploadJob) preprocess() error {
-	if u.avi {
+	if u.convertAVI {
 		err := u.convertMp4()
 		if err != nil {
 			u.moveToFailed()
 			return err
 		}
+	}
+	if u.ir {
 		dur, err := u.getDuration()
 		if err == nil {
 			u.duration = dur
@@ -137,30 +141,17 @@ func (u *uploadJob) uploadCPTV(apiClient *api.CacophonyAPI) (int, error) {
 		}
 	}
 	vidType := "thermalRaw"
-	if u.avi {
+	if u.ir {
 		vidType = "irRaw"
 	}
 	data := map[string]interface{}{
 		"type": vidType,
 	}
-	if u.avi {
+	if u.ir {
 		file := filepath.Base(u.filename)
 		file = strings.TrimSuffix(file, filepath.Ext(file))
-		const layout = "2006-01-02_15.04.05"
-		extra := file[1+len(layout):]
-		index := strings.Index(extra, "_")
-		var deviceName string
-		version := "1.0"
+		const layout = "20060102-150405.000000"
 		var additionalMetadata = make(map[string]interface{})
-		if index == -1 {
-			deviceName = extra
-		} else {
-			deviceName = extra[:index]
-			version = extra[index+1:]
-		}
-		additionalMetadata["deviceName"] = deviceName
-		additionalMetadata["version"] = version
-
 		file = file[:len(layout)]
 
 		// GP this will change

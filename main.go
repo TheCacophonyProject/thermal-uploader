@@ -146,6 +146,8 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
 	aviMatches, _ := filepath.Glob(filepath.Join(directory, aviGlob))
 	matches = append(matches, aviMatches...)
+	mp4Matches, _ := filepath.Glob(filepath.Join(directory, mp4Glob))
+	matches = append(matches, mp4Matches...)
 
 	var err error
 	for _, filename := range matches {
