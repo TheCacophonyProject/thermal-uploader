@@ -152,7 +152,6 @@ func (u *uploadJob) uploadCPTV(apiClient *api.CacophonyAPI) (int, error) {
 		file = strings.TrimSuffix(file, filepath.Ext(file))
 		const layout = "20060102-150405.000000"
 		var additionalMetadata = make(map[string]interface{})
-		file = file[:len(layout)]
 
 		// GP this will change
 		if len(file) >= len(layout) {
