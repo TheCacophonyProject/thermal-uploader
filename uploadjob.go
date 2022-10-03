@@ -156,7 +156,15 @@ func (u *uploadJob) uploadCPTV(apiClient *api.CacophonyAPI) (int, error) {
 		// GP this will change
 		if len(file) >= len(layout) {
 			file = file[:len(layout)]
-			t, err := time.Parse(layout, file)
+			// attempt to get system timezone
+			loc, err := time.LoadLocation("Local")
+			var t time.Time
+			if err != nil {
+				log.Printf("Could not get local location%v", err)
+				t, err = time.Parse(layout, file)
+			} else {
+				t, err = time.ParseInLocation(layout, file, loc)
+			}
 			if err != nil {
 				log.Printf("Could not parse date time for %v %v", u.filename, err)
 			} else {
@@ -164,7 +172,6 @@ func (u *uploadJob) uploadCPTV(apiClient *api.CacophonyAPI) (int, error) {
 			}
 		} else {
 			log.Printf("Could not parse date time for %v", u.filename)
-
 		}
 		data["additionalMetadata"] = additionalMetadata
 	}
