@@ -6,8 +6,11 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	api "github.com/TheCacophonyProject/go-api"
 )
@@ -16,7 +19,10 @@ type uploadJob struct {
 	filename    string
 	metafile    string
 	recID       int
+	duration    int
 	hasMetaData bool
+	convertAVI  bool
+	ir          bool
 }
 
 func metaFileExists(filename string) (bool, string) {
@@ -29,7 +35,10 @@ func metaFileExists(filename string) (bool, string) {
 
 func newUploadJob(filename string) *uploadJob {
 	exists, name := metaFileExists(filename)
-	return &uploadJob{filename: filename, metafile: name, hasMetaData: exists}
+	avi := filepath.Ext(filename) == ".avi"
+	irVideo := avi || filepath.Ext(filename) == ".mp4"
+	u := &uploadJob{filename: filename, metafile: name, hasMetaData: exists, convertAVI: avi, ir: irVideo}
+	return u
 }
 
 // delete the current file (CPTV or metadata)
@@ -42,6 +51,69 @@ func (u *uploadJob) delete() {
 			log.Printf("warning: failed to delete %s: %v", u.metafile, err)
 		}
 	}
+}
+
+// ffmpegConversion        = "ffmpeg -i %s -c:v copy -c:a copy -y %s"
+
+func (u *uploadJob) convertMp4() error {
+	var extension = filepath.Ext(u.filename)
+	var name = u.filename[0:len(u.filename)-len(extension)] + ".mp4"
+	cmd := exec.Command("ffmpeg", "-y", // Yes to all
+		"-i", u.filename,
+		"-map_metadata", "-1", // strip out all (mostly) metadata
+		"-vcodec", "libx264",
+		"-c:a", "copy",
+		name,
+	)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(u.filename); err != nil {
+		log.Printf("warning: failed to delete %s: %v", u.filename, err)
+	}
+
+	u.filename = name
+	return nil
+}
+
+func (u *uploadJob) getDuration() (int, error) {
+	// ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 input.mp4
+	cmd := exec.Command("ffprobe",
+		"-v", "error",
+		"-show_entries", "format=duration",
+		"-of", "default=noprint_wrappers=1:nokey=1", // strip out all (mostly) metadata
+		u.filename,
+	)
+	cmd.Stderr = os.Stderr
+	out, err := cmd.Output()
+	if err != nil {
+		log.Printf("error getting duration %v", err)
+		return 0, err
+	}
+	outString := strings.TrimSuffix(string(out), "\n")
+	i, err := strconv.ParseFloat(outString, 16)
+	return int(i), err
+}
+
+func (u *uploadJob) preprocess() error {
+	if u.convertAVI {
+		err := u.convertMp4()
+		if err != nil {
+			u.moveToFailed()
+			return err
+		}
+	}
+	if u.ir {
+		dur, err := u.getDuration()
+		if err == nil {
+			u.duration = dur
+		}
+	}
+	return nil
 }
 
 // upload the current file (CPTV or metadata) and delete it on success
@@ -68,14 +140,52 @@ func (u *uploadJob) uploadCPTV(apiClient *api.CacophonyAPI) (int, error) {
 			log.Printf("Error loading metadata %v\n", err)
 		}
 	}
+	vidType := "thermalRaw"
+	if u.ir {
+		vidType = "irRaw"
+	}
+	data := map[string]interface{}{
+		"type": vidType,
+	}
+	if u.ir {
+		file := filepath.Base(u.filename)
+		file = strings.TrimSuffix(file, filepath.Ext(file))
+		const layout = "20060102-150405.000000"
+		var additionalMetadata = make(map[string]interface{})
 
-	f, err := os.Open(u.filename)
-	if err != nil {
-		return 0, err
+		// GP this will change
+		if len(file) >= len(layout) {
+			file = file[:len(layout)]
+			// attempt to get system timezone
+			loc, err := time.LoadLocation("Local")
+			var t time.Time
+			if err != nil {
+				log.Printf("Could not get local location%v", err)
+				t, err = time.Parse(layout, file)
+			} else {
+				t, err = time.ParseInLocation(layout, file, loc)
+			}
+			if err != nil {
+				log.Printf("Could not parse date time for %v %v", u.filename, err)
+			} else {
+				data["recordingDateTime"] = t
+			}
+		} else {
+			log.Printf("Could not parse date time for %v", u.filename)
+		}
+		data["additionalMetadata"] = additionalMetadata
 	}
 
+	if u.duration > 0 {
+		data["duration"] = u.duration
+	}
+	if meta != nil {
+		data["metadata"] = meta
+	}
+
+	f, err := os.Open(u.filename)
 	defer f.Close()
-	return apiClient.UploadThermalRaw(bufio.NewReader(f), meta)
+	return apiClient.UploadVideo(bufio.NewReader(f), data)
 }
 
 type metadata map[string]interface{}

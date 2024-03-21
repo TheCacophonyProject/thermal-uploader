@@ -33,6 +33,8 @@ import (
 
 const (
 	cptvGlob = "*.cptv"
+	aviGlob  = "*.avi"
+	mp4Glob  = "*.mp4"
 
 	failedUploadsDir        = "failed-uploads"
 	connectionTimeout       = time.Minute * 2
@@ -142,9 +144,19 @@ func minDuration(a, b time.Duration) time.Duration {
 
 func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
+	aviMatches, _ := filepath.Glob(filepath.Join(directory, aviGlob))
+	matches = append(matches, aviMatches...)
+	mp4Matches, _ := filepath.Glob(filepath.Join(directory, mp4Glob))
+	matches = append(matches, mp4Matches...)
+
 	var err error
 	for _, filename := range matches {
 		job := newUploadJob(filename)
+		err = job.preprocess()
+		if err != nil {
+			log.Printf("Failed to preprocess %v: %v", filename, err)
+			continue
+		}
 		err = uploadFileWithRetries(apiClient, job)
 		if err != nil {
 			return err
@@ -155,6 +167,8 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 
 func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
 	matches, _ := filepath.Glob(filepath.Join(directory, failedUploadsDir, cptvGlob))
+	aviMatches, _ := filepath.Glob(filepath.Join(directory, failedUploadsDir, mp4Glob))
+	matches = append(matches, aviMatches...)
 	if len(matches) == 0 {
 		return true
 	}
@@ -170,7 +184,7 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
 			log.Printf("Uploading still failing to upload %v: %v", filename, err)
 			return false
 		}
-		log.Print("success uploading failed")
+		log.Print("success uploading")
 	}
 	return true
 }
