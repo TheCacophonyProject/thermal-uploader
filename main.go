@@ -40,7 +40,7 @@ const (
 )
 
 var version = "No version provided"
-var globs = [4]string{"*.cptv", "*.avi", "*.mp4", "*.pcm"}
+var globs = [5]string{"*.cptv", "*.avi", "*.mp4", "*.wav","*.aac"}
 
 type Args struct {
 	ConfigDir string `arg:"-c,--config" help:"path to configuration directory"`

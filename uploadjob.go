@@ -26,7 +26,7 @@ type uploadJob struct {
 }
 
 func (u *uploadJob) requiresConversion() bool {
-	return filepath.Ext(u.filename) == ".avi" || filepath.Ext(u.filename) == ".pcm"
+	return filepath.Ext(u.filename) == ".avi" || filepath.Ext(u.filename) == ".wav"
 }
 
 func (u *uploadJob) isIR() bool {
@@ -34,7 +34,7 @@ func (u *uploadJob) isIR() bool {
 }
 
 func (u *uploadJob) isAudio() bool {
-	return filepath.Ext(u.filename) == ".pcm"
+	return filepath.Ext(u.filename) == ".wav"|| filepath.Ext(u.filename) == ".aac"
 }
 
 func (u *uploadJob) isThermal() bool {
@@ -53,11 +53,10 @@ func (u *uploadJob) fileType() string {
 
 func (u *uploadJob) convertAudio() error {
 	var extension = filepath.Ext(u.filename)
-	var name = u.filename[0:len(u.filename)-len(extension)] + ".mp4"
+	var name = u.filename[0:len(u.filename)-len(extension)] + ".aac"
 	cmd := exec.Command("ffmpeg", "-y", // Yes to all
 		"-i", u.filename,
-		"--codec:a", "aac",
-		"-c:a", "copy",
+		"-codec:a", "aac",
 		name,
 	)
 	cmd.Stderr = os.Stderr
@@ -224,7 +223,7 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 	return apiClient.UploadVideo(bufio.NewReader(f), data)
 }
 
-func parseDateTime(filename string, layout string) (string, error) {
+func parseDateTime(filename string, layout string) (time.Time, error) {
 	file := filepath.Base(filename)
 	file = strings.TrimSuffix(file, filepath.Ext(file))
 	// var additionalMetadata = make(map[string]interface{})
@@ -243,11 +242,11 @@ func parseDateTime(filename string, layout string) (string, error) {
 		}
 		if err != nil {
 			log.Printf("Could not parse date time for %v %v\n", filename, err)
-			return "", err
+			return time.Time{}, err
 		}
-		return t.String(), nil
+		return t, nil
 	}
-	return "", errors.New(fmt.Sprintf("Could not parse date time for %v with expected layout %v", filename, layout))
+	return time.Time{}, errors.New(fmt.Sprintf("Could not parse date time for %v with expected layout %v", filename, layout))
 }
 
 type metadata map[string]interface{}
