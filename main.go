@@ -32,10 +32,6 @@ import (
 )
 
 const (
-	cptvGlob = "*.cptv"
-	aviGlob  = "*.avi"
-	mp4Glob  = "*.mp4"
-
 	failedUploadsDir        = "failed-uploads"
 	connectionTimeout       = time.Minute * 2
 	connectionRetryInterval = time.Minute * 10
@@ -44,6 +40,7 @@ const (
 )
 
 var version = "No version provided"
+var globs = [4]string{"*.cptv", "*.avi", "*.mp4", "*.pcm"}
 
 type Args struct {
 	ConfigDir string `arg:"-c,--config" help:"path to configuration directory"`
@@ -143,12 +140,11 @@ func minDuration(a, b time.Duration) time.Duration {
 }
 
 func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
-	matches, _ := filepath.Glob(filepath.Join(directory, cptvGlob))
-	aviMatches, _ := filepath.Glob(filepath.Join(directory, aviGlob))
-	matches = append(matches, aviMatches...)
-	mp4Matches, _ := filepath.Glob(filepath.Join(directory, mp4Glob))
-	matches = append(matches, mp4Matches...)
-
+	var matches = make([]string, 0, 5)
+	for _, glob := range globs {
+		globMatches, _ := filepath.Glob(filepath.Join(directory, glob))
+		matches = append(matches, globMatches...)
+	}
 	var err error
 	for _, filename := range matches {
 		job := newUploadJob(filename)
@@ -166,9 +162,11 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 }
 
 func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
-	matches, _ := filepath.Glob(filepath.Join(directory, failedUploadsDir, cptvGlob))
-	aviMatches, _ := filepath.Glob(filepath.Join(directory, failedUploadsDir, mp4Glob))
-	matches = append(matches, aviMatches...)
+	var matches = make([]string, 0, 5)
+	for _, glob := range globs {
+		globMatches, _ := filepath.Glob(filepath.Join(directory, glob))
+		matches = append(matches, globMatches...)
+	}
 	if len(matches) == 0 {
 		return true
 	}

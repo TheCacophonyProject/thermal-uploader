@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -19,10 +21,69 @@ type uploadJob struct {
 	filename    string
 	metafile    string
 	recID       int
-	duration    int
 	hasMetaData bool
-	convertAVI  bool
-	ir          bool
+	duration    int
+}
+
+func (u *uploadJob) requiresConversion() bool {
+	return filepath.Ext(u.filename) == ".avi" || filepath.Ext(u.filename) == ".pcm"
+}
+
+func (u *uploadJob) isIR() bool {
+	return filepath.Ext(u.filename) == ".avi" || filepath.Ext(u.filename) == ".mp4"
+}
+
+func (u *uploadJob) isAudio() bool {
+	return filepath.Ext(u.filename) == ".pcm"
+}
+
+func (u *uploadJob) isThermal() bool {
+	return filepath.Ext(u.filename) == ".cptv"
+}
+
+func (u *uploadJob) fileType() string {
+	fileType := "thermalRaw"
+	if u.isIR() {
+		fileType = "irRaw"
+	} else if u.isAudio() {
+		fileType = "audio"
+	}
+	return fileType
+}
+
+func (u *uploadJob) convertAudio() error {
+	var extension = filepath.Ext(u.filename)
+	var name = u.filename[0:len(u.filename)-len(extension)] + ".mp4"
+	cmd := exec.Command("ffmpeg", "-y", // Yes to all
+		"-i", u.filename,
+		"--codec:a", "aac",
+		"-c:a", "copy",
+		name,
+	)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(u.filename); err != nil {
+		log.Printf("warning: failed to delete %s: %v", u.filename, err)
+	}
+
+	u.filename = name
+	return nil
+}
+
+func (u *uploadJob) convert() error {
+	if !u.requiresConversion() {
+		return nil
+	} else if u.isAudio() {
+		return u.convertAudio()
+	} else if u.isIR() {
+		return u.convertMp4()
+	}
+	return nil
 }
 
 func metaFileExists(filename string) (bool, string) {
@@ -35,9 +96,7 @@ func metaFileExists(filename string) (bool, string) {
 
 func newUploadJob(filename string) *uploadJob {
 	exists, name := metaFileExists(filename)
-	avi := filepath.Ext(filename) == ".avi"
-	irVideo := avi || filepath.Ext(filename) == ".mp4"
-	u := &uploadJob{filename: filename, metafile: name, hasMetaData: exists, convertAVI: avi, ir: irVideo}
+	u := &uploadJob{filename: filename, metafile: name, hasMetaData: exists, duration: 0}
 	return u
 }
 
@@ -52,8 +111,13 @@ func (u *uploadJob) delete() {
 		}
 	}
 }
-
-// ffmpegConversion        = "ffmpeg -i %s -c:v copy -c:a copy -y %s"
+func (u *uploadJob) preprocess() error {
+	err := u.setDuration()
+	if err != nil {
+		log.Printf("Error getting duration %v\n", err)
+	}
+	return u.convert()
+}
 
 func (u *uploadJob) convertMp4() error {
 	var extension = filepath.Ext(u.filename)
@@ -80,7 +144,10 @@ func (u *uploadJob) convertMp4() error {
 	return nil
 }
 
-func (u *uploadJob) getDuration() (int, error) {
+func (u *uploadJob) setDuration() error {
+	if u.isThermal() {
+		return nil
+	}
 	// ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 input.mp4
 	cmd := exec.Command("ffprobe",
 		"-v", "error",
@@ -92,34 +159,18 @@ func (u *uploadJob) getDuration() (int, error) {
 	out, err := cmd.Output()
 	if err != nil {
 		log.Printf("error getting duration %v", err)
-		return 0, err
+		return err
 	}
 	outString := strings.TrimSuffix(string(out), "\n")
 	i, err := strconv.ParseFloat(outString, 16)
-	return int(i), err
-}
-
-func (u *uploadJob) preprocess() error {
-	if u.convertAVI {
-		err := u.convertMp4()
-		if err != nil {
-			u.moveToFailed()
-			return err
-		}
-	}
-	if u.ir {
-		dur, err := u.getDuration()
-		if err == nil {
-			u.duration = dur
-		}
-	}
-	return nil
+	u.duration = int(i)
+	return err
 }
 
 // upload the current file (CPTV or metadata) and delete it on success
 func (u *uploadJob) upload(apiClient *api.CacophonyAPI) error {
 	var err error
-	u.recID, err = u.uploadCPTV(apiClient)
+	u.recID, err = u.uploadFile(apiClient)
 	if err == nil {
 		u.delete()
 	}
@@ -131,7 +182,7 @@ func (u *uploadJob) upload(apiClient *api.CacophonyAPI) error {
 	}
 }
 
-func (u *uploadJob) uploadCPTV(apiClient *api.CacophonyAPI) (int, error) {
+func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 	var meta metadata
 	var err error
 	if u.hasMetaData {
@@ -140,40 +191,21 @@ func (u *uploadJob) uploadCPTV(apiClient *api.CacophonyAPI) (int, error) {
 			log.Printf("Error loading metadata %v\n", err)
 		}
 	}
-	vidType := "thermalRaw"
-	if u.ir {
-		vidType = "irRaw"
-	}
 	data := map[string]interface{}{
-		"type": vidType,
+		"type": u.fileType(),
 	}
-	if u.ir {
-		file := filepath.Base(u.filename)
-		file = strings.TrimSuffix(file, filepath.Ext(file))
+	if u.isIR() {
 		const layout = "20060102-150405.000000"
-		var additionalMetadata = make(map[string]interface{})
-
-		// GP this will change
-		if len(file) >= len(layout) {
-			file = file[:len(layout)]
-			// attempt to get system timezone
-			loc, err := time.LoadLocation("Local")
-			var t time.Time
-			if err != nil {
-				log.Printf("Could not get local location%v", err)
-				t, err = time.Parse(layout, file)
-			} else {
-				t, err = time.ParseInLocation(layout, file, loc)
-			}
-			if err != nil {
-				log.Printf("Could not parse date time for %v %v", u.filename, err)
-			} else {
-				data["recordingDateTime"] = t
-			}
-		} else {
-			log.Printf("Could not parse date time for %v", u.filename)
+		dt, err := parseDateTime(u.filename, layout)
+		if err == nil {
+			data["recordingDateTime"] = dt
 		}
-		data["additionalMetadata"] = additionalMetadata
+	} else if u.isAudio() {
+		const layout = "20060102-150405"
+		dt, err := parseDateTime(u.filename, layout)
+		if err == nil {
+			data["recordingDateTime"] = dt
+		}
 	}
 
 	if u.duration > 0 {
@@ -183,9 +215,39 @@ func (u *uploadJob) uploadCPTV(apiClient *api.CacophonyAPI) (int, error) {
 		data["metadata"] = meta
 	}
 
+	err = u.convert()
+	if err != nil {
+		return 0, err
+	}
 	f, err := os.Open(u.filename)
 	defer f.Close()
 	return apiClient.UploadVideo(bufio.NewReader(f), data)
+}
+
+func parseDateTime(filename string, layout string) (string, error) {
+	file := filepath.Base(filename)
+	file = strings.TrimSuffix(file, filepath.Ext(file))
+	// var additionalMetadata = make(map[string]interface{})
+
+	// GP this will change
+	if len(file) >= len(layout) {
+		file = file[:len(layout)]
+		// attempt to get system timezone
+		loc, err := time.LoadLocation("Local")
+		var t time.Time
+		if err != nil {
+			log.Printf("Could not get local location%v\n", err)
+			t, err = time.Parse(layout, file)
+		} else {
+			t, err = time.ParseInLocation(layout, file, loc)
+		}
+		if err != nil {
+			log.Printf("Could not parse date time for %v %v\n", filename, err)
+			return "", err
+		}
+		return t.String(), nil
+	}
+	return "", errors.New(fmt.Sprintf("Could not parse date time for %v with expected layout %v", filename, layout))
 }
 
 type metadata map[string]interface{}
