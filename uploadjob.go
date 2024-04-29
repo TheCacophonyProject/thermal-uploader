@@ -195,18 +195,18 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 	}
 	if u.isIR() {
 		const layout = "20060102-150405.000000"
-		dt, err := parseDateTime(u.filename, layout)
+		dt, err := parseDateTime(u.filename, layout, false)
 		if err == nil {
-			data["recordingDateTime"] = dt
+			data["recordingDateTime"] = dt.Format(time.RFC3339)
 		}
 	} else if u.isAudio() {
 		const layout = "20060102-150405"
-		dt, err := parseDateTime(u.filename, layout)
+		dt, err := parseDateTime(u.filename, layout,true)
 		if err == nil {
-			data["recordingDateTime"] = dt
+			data["recordingDateTime"] = dt.Format(time.RFC3339)
 		}
 	}
-
+	log.Printf("Data is %v",data);
 	if u.duration > 0 {
 		data["duration"] = u.duration
 	}
@@ -223,7 +223,7 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 	return apiClient.UploadVideo(bufio.NewReader(f), data)
 }
 
-func parseDateTime(filename string, layout string) (time.Time, error) {
+func parseDateTime(filename string, layout string, utctime bool) (time.Time, error) {
 	file := filepath.Base(filename)
 	file = strings.TrimSuffix(file, filepath.Ext(file))
 	// var additionalMetadata = make(map[string]interface{})
@@ -232,13 +232,19 @@ func parseDateTime(filename string, layout string) (time.Time, error) {
 	if len(file) >= len(layout) {
 		file = file[:len(layout)]
 		// attempt to get system timezone
-		loc, err := time.LoadLocation("Local")
 		var t time.Time
-		if err != nil {
-			log.Printf("Could not get local location%v\n", err)
+		var err error
+		if utctime {
 			t, err = time.Parse(layout, file)
-		} else {
-			t, err = time.ParseInLocation(layout, file, loc)
+		}else{
+			loc, err := time.LoadLocation("Local")
+			if err != nil {
+				log.Printf("Could not get local location%v\n", err)
+				t, err = time.Parse(layout, file)
+			} else {
+				t, err = time.ParseInLocation(layout, file, loc)
+				log.Printf("Parsed location %v %v %v", file, loc, t);
+			}
 		}
 		if err != nil {
 			log.Printf("Could not parse date time for %v %v\n", filename, err)
