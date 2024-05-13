@@ -34,7 +34,7 @@ func (u *uploadJob) isIR() bool {
 }
 
 func (u *uploadJob) isAudio() bool {
-	return filepath.Ext(u.filename) == ".wav"|| filepath.Ext(u.filename) == ".aac"
+	return filepath.Ext(u.filename) == ".wav" || filepath.Ext(u.filename) == ".aac"
 }
 
 func (u *uploadJob) isThermal() bool {
@@ -57,6 +57,7 @@ func (u *uploadJob) convertAudio() error {
 	cmd := exec.Command("ffmpeg", "-y", // Yes to all
 		"-i", u.filename,
 		"-codec:a", "aac",
+		"-b:a", "128k",
 		name,
 	)
 	cmd.Stderr = os.Stderr
@@ -201,12 +202,12 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 		}
 	} else if u.isAudio() {
 		const layout = "20060102-150405"
-		dt, err := parseDateTime(u.filename, layout,true)
+		dt, err := parseDateTime(u.filename, layout, true)
 		if err == nil {
 			data["recordingDateTime"] = dt.Format(time.RFC3339)
 		}
 	}
-	log.Printf("Data is %v",data);
+	log.Printf("Data is %v", data)
 	if u.duration > 0 {
 		data["duration"] = u.duration
 	}
@@ -236,14 +237,14 @@ func parseDateTime(filename string, layout string, utctime bool) (time.Time, err
 		var err error
 		if utctime {
 			t, err = time.Parse(layout, file)
-		}else{
+		} else {
 			loc, err := time.LoadLocation("Local")
 			if err != nil {
 				log.Printf("Could not get local location%v\n", err)
 				t, err = time.Parse(layout, file)
 			} else {
 				t, err = time.ParseInLocation(layout, file, loc)
-				log.Printf("Parsed location %v %v %v", file, loc, t);
+				log.Printf("Parsed location %v %v %v", file, loc, t)
 			}
 		}
 		if err != nil {
