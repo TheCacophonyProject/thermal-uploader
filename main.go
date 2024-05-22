@@ -40,7 +40,7 @@ const (
 )
 
 var version = "No version provided"
-var globs = [5]string{"*.cptv", "*.avi", "*.mp4", "*.wav","*.aac"}
+var globs = [5]string{"*.cptv", "*.avi", "*.mp4", "*.wav", "*.aac"}
 
 type Args struct {
 	ConfigDir string `arg:"-c,--config" help:"path to configuration directory"`
@@ -151,6 +151,7 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 		err = job.preprocess()
 		if err != nil {
 			log.Printf("Failed to preprocess %v: %v", filename, err)
+			job.moveToFailed()
 			continue
 		}
 		err = uploadFileWithRetries(apiClient, job)
