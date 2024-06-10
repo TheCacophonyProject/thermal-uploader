@@ -28,6 +28,7 @@ import (
 	goconfig "github.com/TheCacophonyProject/go-config"
 	"github.com/TheCacophonyProject/modemd/connrequester"
 	arg "github.com/alexflint/go-arg"
+	"github.com/godbus/dbus"
 	"github.com/rjeczalik/notify"
 )
 
@@ -145,8 +146,11 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 		globMatches, _ := filepath.Glob(filepath.Join(directory, glob))
 		matches = append(matches, globMatches...)
 	}
+
 	var err error
 	for _, filename := range matches {
+		sendOnRequest(1)
+
 		job := newUploadJob(filename)
 		err = job.preprocess()
 		if err != nil {
@@ -165,7 +169,7 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
 	var matches = make([]string, 0, 5)
 	for _, glob := range globs {
-		globMatches, _ := filepath.Glob(filepath.Join(directory, glob))
+		globMatches, _ := filepath.Glob(filepath.Join(directory, failedUploadsDir, glob))
 		matches = append(matches, globMatches...)
 	}
 	if len(matches) == 0 {
@@ -183,7 +187,7 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
 			log.Printf("Uploading still failing to upload %v: %v", filename, err)
 			return false
 		}
-		log.Print("success uploading")
+		log.Print("success uploading failed")
 	}
 	return true
 }
@@ -203,4 +207,24 @@ func uploadFileWithRetries(apiClient *api.CacophonyAPI, job *uploadJob) error {
 	}
 	log.Printf("upload failed multiple times, moving file to failed uploads folder")
 	return job.moveToFailed()
+}
+
+const dbusDest = "org.cacophony.ATtiny"
+const dbusPath = "/org/cacophony/ATtiny"
+
+func getDbusObj() (dbus.BusObject, error) {
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		return nil, err
+	}
+	obj := conn.Object(dbusDest, dbusPath)
+	return obj, nil
+}
+
+func sendOnRequest(timeOn int64) error {
+	obj, err := getDbusObj()
+	if err != nil {
+		return err
+	}
+	return obj.Call("org.cacophony.ATtiny.StayOn", 0).Store(timeOn)
 }

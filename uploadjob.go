@@ -148,6 +148,7 @@ func (u *uploadJob) setDuration() error {
 	if u.isThermal() {
 		return nil
 	}
+
 	// ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 input.mp4
 	cmd := exec.Command("ffprobe",
 		"-v", "error",
@@ -162,8 +163,10 @@ func (u *uploadJob) setDuration() error {
 		return err
 	}
 	outString := strings.TrimSuffix(string(out), "\n")
-	i, err := strconv.ParseFloat(outString, 16)
+	i, err := strconv.ParseFloat(outString, 32)
+
 	u.duration = int(i)
+
 	return err
 }
 
@@ -207,13 +210,13 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 			data["recordingDateTime"] = dt.Format(time.RFC3339)
 		}
 	}
-	log.Printf("Data is %v", data)
 	if u.duration > 0 {
 		data["duration"] = u.duration
 	}
 	if meta != nil {
 		data["metadata"] = meta
 	}
+	log.Printf("Data is %v", data)
 
 	err = u.convert()
 	if err != nil {
