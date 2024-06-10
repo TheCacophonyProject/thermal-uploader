@@ -8,7 +8,7 @@ require (
 	github.com/TheCacophonyProject/go-config v1.8.2
 	github.com/TheCacophonyProject/modemd v1.1.1
 	github.com/alexflint/go-arg v1.4.2
-	github.com/godbus/dbus v4.1.0+incompatible // indirect
+	github.com/godbus/dbus v4.1.0+incompatible
 	github.com/pelletier/go-toml/v2 v2.0.2 // indirect
 	github.com/rjeczalik/notify v0.0.0-20171004161231-1aa3b9de8d84
 	github.com/spf13/afero v1.9.2
