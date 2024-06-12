@@ -216,7 +216,6 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 	if meta != nil {
 		data["metadata"] = meta
 	}
-	log.Printf("Data is %v", data)
 
 	err = u.convert()
 	if err != nil {
