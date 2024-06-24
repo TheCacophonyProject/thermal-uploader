@@ -187,7 +187,7 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
 			log.Printf("Uploading still failing to upload %v: %v", filename, err)
 			return false
 		}
-		log.Print("success uploading failed")
+		log.Print("success uploading failed items")
 	}
 	return true
 }
