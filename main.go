@@ -149,7 +149,10 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 
 	var err error
 	for _, filename := range matches {
-		sendOnRequest(1)
+		err = sendOnRequest(1)
+		if err != nil {
+			log.Printf("Failed to send on request %v", err)
+		}
 
 		job := newUploadJob(filename)
 		err = job.preprocess()
@@ -226,5 +229,5 @@ func sendOnRequest(timeOn int64) error {
 	if err != nil {
 		return err
 	}
-	return obj.Call("org.cacophony.ATtiny.StayOn", 0).Store(timeOn)
+	return obj.Call("org.cacophony.ATtiny.StayOnFor", 0, timeOn).Store()
 }
