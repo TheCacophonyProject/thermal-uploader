@@ -103,12 +103,14 @@ func runMain() error {
 	nextFailedRetry := time.Now()
 	failedRetryAttempts := 0
 	defer notify.Stop(fsEvents)
+	sendOnRequest(20)
 	for {
+		newFiles := 0
 		// Check for files to upload first in case there are CPTV
 		// files around when the uploader starts.
 		cr.Start()
 		cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
-		if err = uploadFiles(apiClient, conf.Directory); err != nil {
+		if newFiles, err = uploadFiles(apiClient, conf.Directory); err != nil {
 			return err
 		}
 
@@ -123,6 +125,9 @@ func runMain() error {
 				nextFailedRetry = time.Now().Add(minDuration(timeAddition, failedRetryMaxInterval))
 				log.Printf("Failed still failed try again after %v", nextFailedRetry)
 			}
+		}
+		if newFiles == 0 {
+			sendFinished()
 		}
 		cr.Stop()
 		// Block until there's activity in the directory. We don't
@@ -140,7 +145,7 @@ func minDuration(a, b time.Duration) time.Duration {
 	}
 }
 
-func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
+func uploadFiles(apiClient *api.CacophonyAPI, directory string) (int, error) {
 	var matches = make([]string, 0, 5)
 	for _, glob := range globs {
 		globMatches, _ := filepath.Glob(filepath.Join(directory, glob))
@@ -149,7 +154,6 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 
 	var err error
 	for _, filename := range matches {
-		err = sendOnRequest(1)
 		if err != nil {
 			log.Printf("Failed to send on request %v", err)
 		}
@@ -163,10 +167,10 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 		}
 		err = uploadFileWithRetries(apiClient, job)
 		if err != nil {
-			return err
+			return len(matches), err
 		}
 	}
-	return nil
+	return len(matches), nil
 }
 
 func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
@@ -224,10 +228,39 @@ func getDbusObj() (dbus.BusObject, error) {
 	return obj, nil
 }
 
-func sendOnRequest(timeOn int64) error {
+func sendFinished() error {
+	attempt := 0
 	obj, err := getDbusObj()
 	if err != nil {
 		return err
 	}
-	return obj.Call("org.cacophony.ATtiny.StayOnFor", 0, timeOn).Store()
+	for attempt < 3 {
+		err = obj.Call("org.cacophony.ATtiny.StayOnFinished", 0, "uploader").Store()
+		if err == nil {
+			return nil
+		}
+		attempt += 1
+		if attempt < 3 {
+			log.Printf("Retrying finished request %v", err)
+			time.Sleep(1 * time.Second)
+		}
+	}
+	return err
+}
+
+func sendOnRequest(timeOn int64) error {
+	attempt := 0
+	obj, err := getDbusObj()
+	if err != nil {
+		return err
+	}
+	for attempt < 3 {
+
+		err = obj.Call("org.cacophony.ATtiny.StayOnForProcess", 0, "uploader", timeOn).Store()
+		attempt += 1
+		if attempt < 3 {
+			log.Printf("Retrying on request %v", err)
+			time.Sleep(1 * time.Second)
+		}
+	}
 }
