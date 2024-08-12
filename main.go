@@ -255,7 +255,6 @@ func sendOnRequest(timeOn int64) error {
 		return err
 	}
 	for attempt < 3 {
-
 		err = obj.Call("org.cacophony.ATtiny.StayOnForProcess", 0, "uploader", timeOn).Store()
 		attempt += 1
 		if attempt < 3 {
@@ -263,4 +262,5 @@ func sendOnRequest(timeOn int64) error {
 			time.Sleep(1 * time.Second)
 		}
 	}
+	return err
 }
