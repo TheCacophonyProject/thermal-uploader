@@ -103,7 +103,7 @@ func runMain() error {
 	nextFailedRetry := time.Now()
 	failedRetryAttempts := 0
 	defer notify.Stop(fsEvents)
-	sendOnRequest(20)
+	sendOnRequest(120)
 	for {
 		newFiles := 0
 		// Check for files to upload first in case there are CPTV
@@ -128,6 +128,8 @@ func runMain() error {
 		}
 		if newFiles == 0 {
 			sendFinished()
+		} else {
+			sendOnRequest(120)
 		}
 		cr.Stop()
 		// Block until there's activity in the directory. We don't
