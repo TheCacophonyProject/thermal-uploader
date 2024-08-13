@@ -239,6 +239,7 @@ func sendFinished() error {
 	for attempt < 3 {
 		err = obj.Call("org.cacophony.ATtiny.StayOnFinished", 0, "uploader").Store()
 		if err == nil {
+			log.Println("Stay on finished requested")
 			return nil
 		}
 		attempt += 1
@@ -258,6 +259,10 @@ func sendOnRequest(timeOn int64) error {
 	}
 	for attempt < 3 {
 		err = obj.Call("org.cacophony.ATtiny.StayOnForProcess", 0, "uploader", timeOn).Store()
+		if err == nil {
+			log.Println("Stay on requested")
+			return nil
+		}
 		attempt += 1
 		if attempt < 3 {
 			log.Printf("Retrying on request %v", err)
