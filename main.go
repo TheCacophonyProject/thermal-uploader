@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/TheCacophonyProject/go-api"
 	goconfig "github.com/TheCacophonyProject/go-config"
+	"github.com/TheCacophonyProject/go-utils/logging"
 	"github.com/TheCacophonyProject/modemd/connrequester"
 	arg "github.com/alexflint/go-arg"
 	"github.com/godbus/dbus"
@@ -40,11 +40,13 @@ const (
 	failedRetryMaxInterval  = time.Hour * 24
 )
 
+var log = logging.NewLogger("info")
 var version = "No version provided"
 var globs = [5]string{"*.cptv", "*.avi", "*.mp4", "*.wav", "*.aac"}
 
 type Args struct {
 	ConfigDir string `arg:"-c,--config" help:"path to configuration directory"`
+	logging.LogArgs
 }
 
 func (Args) Version() string {
@@ -66,9 +68,10 @@ func main() {
 }
 
 func runMain() error {
-	log.SetFlags(0) // Removes default timestamp flag
-
 	args := procArgs()
+
+	log = logging.NewLogger(args.LogLevel)
+
 	log.Printf("running version: %s", version)
 
 	cr := connrequester.NewConnectionRequester()

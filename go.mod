@@ -1,23 +1,47 @@
 module github.com/TheCacophonyProject/thermal-uploader
 
-go 1.15
+go 1.22.3
 
 require (
-	github.com/TheCacophonyProject/event-reporter/v3 v3.4.0 // indirect
 	github.com/TheCacophonyProject/go-api v1.0.3
 	github.com/TheCacophonyProject/go-config v1.8.2
+	github.com/TheCacophonyProject/go-utils v0.1.1
 	github.com/TheCacophonyProject/modemd v1.1.1
 	github.com/alexflint/go-arg v1.4.2
 	github.com/godbus/dbus v4.1.0+incompatible
-	github.com/pelletier/go-toml/v2 v2.0.2 // indirect
 	github.com/rjeczalik/notify v0.0.0-20171004161231-1aa3b9de8d84
 	github.com/spf13/afero v1.9.2
-	github.com/spf13/viper v1.12.0 // indirect
 	github.com/stretchr/testify v1.7.2
+)
+
+require (
+	github.com/TheCacophonyProject/event-reporter/v3 v3.4.0 // indirect
+	github.com/TheCacophonyProject/go-cptv v0.0.0-20201215230510-ae7134e91a71 // indirect
+	github.com/TheCacophonyProject/lepton3 v0.0.0-20211005194419-22311c15d6ee // indirect
+	github.com/alexflint/go-scalar v1.1.0 // indirect
+	github.com/boltdb/bolt v1.3.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/fsnotify/fsnotify v1.5.4 // indirect
+	github.com/gofrs/flock v0.8.1 // indirect
+	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/magiconair/properties v1.8.6 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/pelletier/go-toml v1.9.5 // indirect
+	github.com/pelletier/go-toml/v2 v2.0.2 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
+	github.com/spf13/cast v1.5.0 // indirect
+	github.com/spf13/jwalterweatherman v1.1.0 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/viper v1.12.0 // indirect
 	github.com/subosito/gotenv v1.4.0 // indirect
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
+	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/ini.v1 v1.66.6 // indirect
+	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	periph.io/x/periph v3.7.0+incompatible // indirect
 )
 

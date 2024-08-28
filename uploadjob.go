@@ -3,10 +3,8 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -222,6 +220,9 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 		return 0, err
 	}
 	f, err := os.Open(u.filename)
+	if err != nil {
+		return 0, err
+	}
 	defer f.Close()
 	return apiClient.UploadVideo(bufio.NewReader(f), data)
 }
@@ -244,8 +245,16 @@ func parseDateTime(filename string, layout string, utctime bool) (time.Time, err
 			if err != nil {
 				log.Printf("Could not get local location%v\n", err)
 				t, err = time.Parse(layout, file)
+				if err != nil {
+					log.Errorf("Could not parse date time for %v %v\n", filename, err)
+					return time.Time{}, err
+				}
 			} else {
 				t, err = time.ParseInLocation(layout, file, loc)
+				if err != nil {
+					log.Errorf("Could not parse date time for %v %v\n", filename, err)
+					return time.Time{}, err
+				}
 				log.Printf("Parsed location %v %v %v", file, loc, t)
 			}
 		}
@@ -255,7 +264,7 @@ func parseDateTime(filename string, layout string, utctime bool) (time.Time, err
 		}
 		return t, nil
 	}
-	return time.Time{}, errors.New(fmt.Sprintf("Could not parse date time for %v with expected layout %v", filename, layout))
+	return time.Time{}, fmt.Errorf("could not parse date time for %v with expected layout %v", filename, layout)
 }
 
 type metadata map[string]interface{}
