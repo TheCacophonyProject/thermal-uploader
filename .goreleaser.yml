@@ -1,4 +1,7 @@
 project_name: thermal-uploader
+
+version: 2
+
 release:
   github:
     owner: TheCacophonyProject
