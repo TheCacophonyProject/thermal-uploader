@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -271,7 +270,7 @@ type metadata map[string]interface{}
 
 func loadMeta(filename string) (metadata, error) {
 	var meta metadata
-	byteValue, err := ioutil.ReadFile(filename)
+	byteValue, err := os.ReadFile(filename)
 	if err != nil {
 		return meta, err
 	}
