@@ -1,3 +1,4 @@
+---
 project_name: thermal-uploader
 
 version: 2
@@ -8,32 +9,32 @@ release:
     name: thermal-uploader
   name_template: '{{.Tag}}'
 builds:
-- goos:
-  - linux
-  goarch:
-  - arm
-  - arm64
-  goarm:
-  - "7"
-  main: ./cmd/thermal-uploader
-  ldflags: -s -w -X main.version={{.Version}}
-  binary: thermal-uploader
+  - goos:
+      - linux
+    goarch:
+      - arm
+      - arm64
+    goarm:
+      - "7"
+    main: ./cmd/thermal-uploader
+    ldflags: -s -w -X main.version={{.Version}}
+    binary: thermal-uploader
 
 nfpms:
-- vendor: The Cacophony Project
-  homepage: http://cacophony.org.nz/
-  maintainer: Cacophony Developers <coredev@cacophony.org.nz>
-  description: Upload thermal video footage to Cacophony Project API server
-  license: GPL v3.0
-  file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}"
-  formats:
-    - deb
-  bindir: /usr/bin
-  contents:
-    - src: _release/thermal-uploader.service
-      dst: /etc/systemd/system/thermal-uploader.service
-  scripts:
-    postinstall: "_release/postinstall.sh"
+  - vendor: The Cacophony Project
+    homepage: http://cacophony.org.nz/
+    maintainer: Cacophony Developers <coredev@cacophony.org.nz>
+    description: Upload thermal video footage to Cacophony Project API server
+    license: GPL v3.0
+    file_name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Arch }}"
+    formats:
+      - deb
+    bindir: /usr/bin
+    contents:
+      - src: _release/thermal-uploader.service
+        dst: /etc/systemd/system/thermal-uploader.service
+    scripts:
+      postinstall: "_release/postinstall.sh"
 checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
 dist: dist
