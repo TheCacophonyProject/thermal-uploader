@@ -94,26 +94,26 @@ func runMain() error {
 		return fmt.Errorf("configuration error: %v", err)
 	}
 
-	log.Println("making failed uploads directory")
+	log.Println("Making failed uploads directory")
 	os.MkdirAll(filepath.Join(conf.Directory, failedUploadsDir), 0755)
 
-	log.Println("watching", conf.Directory)
+	log.Println("Watching", conf.Directory)
 	fsEvents := make(chan notify.EventInfo, 1)
 	if err := notify.Watch(conf.Directory, fsEvents, notify.InCloseWrite, notify.InMovedTo); err != nil {
 		return err
 	}
+	defer notify.Stop(fsEvents)
 
 	nextFailedRetry := time.Now()
 	failedRetryAttempts := 0
-	defer notify.Stop(fsEvents)
-	sendOnRequest(120)
+
 	for {
-		newFiles := 0
+		sendOnRequest(60)
 		// Check for files to upload first in case there are CPTV
 		// files around when the uploader starts.
 		cr.Start()
 		cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
-		if newFiles, err = uploadFiles(apiClient, conf.Directory); err != nil {
+		if err = uploadFiles(apiClient, conf.Directory); err != nil {
 			return err
 		}
 
@@ -129,16 +129,17 @@ func runMain() error {
 				log.Printf("Failed still failed try again after %v", nextFailedRetry)
 			}
 		}
-		if newFiles == 0 {
-			sendFinished()
-		} else {
-			sendOnRequest(120)
+
+		// Check if we can stop or if there is a new file to be uploaded.
+		select {
+		case <-fsEvents:
+			// A new file was added during the last iteration, loop again.
+		case <-time.After(time.Second):
+			// No new file was added, then:
+			sendFinished() // Tell tc2-hat-attiny that we are all done.
+			cr.Stop()      // Stop requesting an internet connection.
+			<-fsEvents     // Wait for a new file to be added.
 		}
-		cr.Stop()
-		// Block until there's activity in the directory. We don't
-		// care what it is as uploadFiles will only act on CPTV
-		// files.
-		<-fsEvents
 	}
 }
 
@@ -150,7 +151,7 @@ func minDuration(a, b time.Duration) time.Duration {
 	}
 }
 
-func uploadFiles(apiClient *api.CacophonyAPI, directory string) (int, error) {
+func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 	var matches = make([]string, 0, 5)
 	for _, glob := range globs {
 		globMatches, _ := filepath.Glob(filepath.Join(directory, glob))
@@ -172,10 +173,10 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) (int, error) {
 		}
 		err = uploadFileWithRetries(apiClient, job)
 		if err != nil {
-			return len(matches), err
+			return err
 		}
 	}
-	return len(matches), nil
+	return nil
 }
 
 func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
