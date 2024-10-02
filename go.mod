@@ -3,10 +3,10 @@ module github.com/TheCacophonyProject/thermal-uploader
 go 1.22.3
 
 require (
-	github.com/TheCacophonyProject/go-api v1.0.3
-	github.com/TheCacophonyProject/go-config v1.8.2
-	github.com/TheCacophonyProject/go-utils v0.1.1
-	github.com/TheCacophonyProject/modemd v1.1.1
+	github.com/TheCacophonyProject/go-api v1.0.4
+	github.com/TheCacophonyProject/go-config v1.9.1
+	github.com/TheCacophonyProject/go-utils v0.1.3
+	github.com/TheCacophonyProject/modemd v1.11.0-tc2
 	github.com/alexflint/go-arg v1.4.2
 	github.com/godbus/dbus v4.1.0+incompatible
 	github.com/rjeczalik/notify v0.0.0-20171004161231-1aa3b9de8d84
@@ -15,9 +15,7 @@ require (
 )
 
 require (
-	github.com/TheCacophonyProject/event-reporter/v3 v3.4.0 // indirect
-	github.com/TheCacophonyProject/go-cptv v0.0.0-20201215230510-ae7134e91a71 // indirect
-	github.com/TheCacophonyProject/lepton3 v0.0.0-20211005194419-22311c15d6ee // indirect
+	github.com/TheCacophonyProject/event-reporter/v3 v3.8.0 // indirect
 	github.com/alexflint/go-scalar v1.1.0 // indirect
 	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -35,14 +33,11 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.12.0 // indirect
 	github.com/subosito/gotenv v1.4.0 // indirect
-	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/ini.v1 v1.66.6 // indirect
-	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	periph.io/x/periph v3.7.0+incompatible // indirect
 )
 
 replace periph.io/x/periph => github.com/TheCacophonyProject/periph v2.1.1-0.20200615222341-6834cd5be8c1+incompatible
