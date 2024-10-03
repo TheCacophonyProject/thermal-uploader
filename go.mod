@@ -3,7 +3,7 @@ module github.com/TheCacophonyProject/thermal-uploader
 go 1.22.3
 
 require (
-	github.com/TheCacophonyProject/go-api v1.0.4
+	github.com/TheCacophonyProject/go-api v1.2.3
 	github.com/TheCacophonyProject/go-config v1.9.1
 	github.com/TheCacophonyProject/go-utils v0.1.3
 	github.com/TheCacophonyProject/modemd v1.11.0-tc2

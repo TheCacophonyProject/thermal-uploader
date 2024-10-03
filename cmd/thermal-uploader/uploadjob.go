@@ -23,7 +23,7 @@ type uploadJob struct {
 }
 
 func (u *uploadJob) requiresConversion() bool {
-	return filepath.Ext(u.filename) == ".avi" || filepath.Ext(u.filename) == ".wav"
+	return filepath.Ext(u.filename) == ".avi"
 }
 
 func (u *uploadJob) isIR() bool {
@@ -31,7 +31,7 @@ func (u *uploadJob) isIR() bool {
 }
 
 func (u *uploadJob) isAudio() bool {
-	return filepath.Ext(u.filename) == ".wav" || filepath.Ext(u.filename) == ".aac"
+	return filepath.Ext(u.filename) == ".aac"
 }
 
 func (u *uploadJob) isThermal() bool {
@@ -48,35 +48,9 @@ func (u *uploadJob) fileType() string {
 	return fileType
 }
 
-func (u *uploadJob) convertAudio() error {
-	var extension = filepath.Ext(u.filename)
-	var name = u.filename[0:len(u.filename)-len(extension)] + ".aac"
-	cmd := exec.Command("ffmpeg", "-y", // Yes to all
-		"-i", u.filename,
-		"-codec:a", "aac",
-		"-b:a", "128k",
-		name,
-	)
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
-
-	err := cmd.Run()
-	if err != nil {
-		return err
-	}
-	if err := os.Remove(u.filename); err != nil {
-		log.Printf("warning: failed to delete %s: %v", u.filename, err)
-	}
-
-	u.filename = name
-	return nil
-}
-
 func (u *uploadJob) convert() error {
 	if !u.requiresConversion() {
 		return nil
-	} else if u.isAudio() {
-		return u.convertAudio()
 	} else if u.isIR() {
 		return u.convertMp4()
 	}
@@ -145,6 +119,9 @@ func (u *uploadJob) setDuration() error {
 	if u.isThermal() {
 		return nil
 	}
+	if u.isAudio() {
+		return nil
+	}
 
 	// ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 input.mp4
 	cmd := exec.Command("ffprobe",
@@ -200,12 +177,6 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 		if err == nil {
 			data["recordingDateTime"] = dt.Format(time.RFC3339)
 		}
-	} else if u.isAudio() {
-		const layout = "20060102-150405"
-		dt, err := parseDateTime(u.filename, layout, true)
-		if err == nil {
-			data["recordingDateTime"] = dt.Format(time.RFC3339)
-		}
 	}
 	if u.duration > 0 {
 		data["duration"] = u.duration
@@ -213,6 +184,7 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 	if meta != nil {
 		data["metadata"] = meta
 	}
+	data["filename"] = u.filename
 
 	err = u.convert()
 	if err != nil {
@@ -222,7 +194,12 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+
+		}
+	}(f)
 	return apiClient.UploadVideo(bufio.NewReader(f), data)
 }
 
