@@ -42,7 +42,7 @@ const (
 
 var log = logging.NewLogger("info")
 var version = "No version provided"
-var globs = [5]string{"*.cptv", "*.avi", "*.mp4", "*.wav", "*.aac"}
+var globs = [5]string{"*.cptv", "*.avi", "*.mp4", "*.aac"}
 
 type Args struct {
 	ConfigDir string `arg:"-c,--config" help:"path to configuration directory"`
@@ -77,7 +77,10 @@ func runMain() error {
 	cr := connrequester.NewConnectionRequester()
 	log.Println("requesting internet connection")
 	cr.Start()
-	cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
+	err := cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
+	if err != nil {
+		return err
+	}
 	log.Println("internet connection made")
 
 	apiClient, err := api.New()
@@ -95,7 +98,12 @@ func runMain() error {
 	}
 
 	log.Println("Making failed uploads directory")
-	os.MkdirAll(filepath.Join(conf.Directory, failedUploadsDir), 0755)
+	{
+		err := os.MkdirAll(filepath.Join(conf.Directory, failedUploadsDir), 0755)
+		if err != nil {
+			return err
+		}
+	}
 
 	log.Println("Watching", conf.Directory)
 	fsEvents := make(chan notify.EventInfo, 1)
@@ -108,11 +116,19 @@ func runMain() error {
 	failedRetryAttempts := 0
 
 	for {
-		sendOnRequest(60)
+		err := sendOnRequest(60)
+		if err != nil {
+			return err
+		}
 		// Check for files to upload first in case there are CPTV
 		// files around when the uploader starts.
 		cr.Start()
-		cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
+		{
+			err := cr.WaitUntilUpLoop(connectionTimeout, connectionRetryInterval, -1)
+			if err != nil {
+				return err
+			}
+		}
 		if err = uploadFiles(apiClient, conf.Directory); err != nil {
 			return err
 		}
@@ -136,9 +152,12 @@ func runMain() error {
 			// A new file was added during the last iteration, loop again.
 		case <-time.After(time.Second):
 			// No new file was added, then:
-			sendFinished() // Tell tc2-hat-attiny that we are all done.
-			cr.Stop()      // Stop requesting an internet connection.
-			<-fsEvents     // Wait for a new file to be added.
+			err := sendFinished()
+			if err != nil {
+				return err
+			} // Tell tc2-hat-attiny that we are all done.
+			cr.Stop()  // Stop requesting an internet connection.
+			<-fsEvents // Wait for a new file to be added.
 		}
 	}
 }
@@ -168,7 +187,10 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 		err = job.preprocess()
 		if err != nil {
 			log.Printf("Failed to preprocess %v: %v", filename, err)
-			job.moveToFailed()
+			err := job.moveToFailed()
+			if err != nil {
+				return err
+			}
 			continue
 		}
 		err = uploadFileWithRetries(apiClient, job)
