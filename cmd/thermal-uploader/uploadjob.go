@@ -194,12 +194,7 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-
-		}
-	}(f)
+	defer f.Close()
 	return apiClient.UploadVideo(bufio.NewReader(f), data)
 }
 
