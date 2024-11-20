@@ -40,9 +40,11 @@ const (
 	failedRetryMaxInterval  = time.Hour * 24
 )
 
-var log = logging.NewLogger("info")
-var version = "No version provided"
-var globs = [4]string{"*.cptv", "*.avi", "*.mp4", "*.aac"}
+var (
+	log     = logging.NewLogger("info")
+	version = "No version provided"
+	globs   = [7]string{"*.cptv", "*.avi", "*.mp4", "*.aac", "*.mp3", "*.wav", "*.webm"}
+)
 
 type Args struct {
 	ConfigDir string `arg:"-c,--config" help:"path to configuration directory"`
@@ -133,7 +135,7 @@ func runMain() error {
 			return err
 		}
 
-		//try failed uploads again if succeeded
+		// try failed uploads again if succeeded
 		if time.Now().After(nextFailedRetry) {
 			if retryFailedUploads(apiClient, conf.Directory) {
 				failedRetryAttempts = 0
@@ -171,7 +173,7 @@ func minDuration(a, b time.Duration) time.Duration {
 }
 
 func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
-	var matches = make([]string, 0, 5)
+	matches := make([]string, 0, 5)
 	for _, glob := range globs {
 		globMatches, _ := filepath.Glob(filepath.Join(directory, glob))
 		matches = append(matches, globMatches...)
@@ -202,7 +204,7 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 }
 
 func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
-	var matches = make([]string, 0, 5)
+	matches := make([]string, 0, 5)
 	for _, glob := range globs {
 		globMatches, _ := filepath.Glob(filepath.Join(directory, failedUploadsDir, glob))
 		matches = append(matches, globMatches...)
@@ -217,7 +219,6 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
 		filename := matches[index]
 		job := newUploadJob(filename)
 		err := job.upload(apiClient)
-
 		if err != nil {
 			log.Printf("Uploading still failing to upload %v: %v", filename, err)
 			return false
@@ -244,8 +245,10 @@ func uploadFileWithRetries(apiClient *api.CacophonyAPI, job *uploadJob) error {
 	return job.moveToFailed()
 }
 
-const dbusDest = "org.cacophony.ATtiny"
-const dbusPath = "/org/cacophony/ATtiny"
+const (
+	dbusDest = "org.cacophony.ATtiny"
+	dbusPath = "/org/cacophony/ATtiny"
+)
 
 func getDbusObj() (dbus.BusObject, error) {
 	conn, err := dbus.SystemBus()

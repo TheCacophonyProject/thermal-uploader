@@ -31,7 +31,7 @@ func (u *uploadJob) isIR() bool {
 }
 
 func (u *uploadJob) isAudio() bool {
-	return filepath.Ext(u.filename) == ".aac"
+	return filepath.Ext(u.filename) == ".aac" || filepath.Ext(u.filename) == ".mp3" || filepath.Ext(u.filename) == ".wav" || filepath.Ext(u.filename) == ".webm"
 }
 
 func (u *uploadJob) isThermal() bool {
@@ -82,6 +82,7 @@ func (u *uploadJob) delete() {
 		}
 	}
 }
+
 func (u *uploadJob) preprocess() error {
 	err := u.setDuration()
 	if err != nil {
@@ -91,8 +92,8 @@ func (u *uploadJob) preprocess() error {
 }
 
 func (u *uploadJob) convertMp4() error {
-	var extension = filepath.Ext(u.filename)
-	var name = u.filename[0:len(u.filename)-len(extension)] + ".mp4"
+	extension := filepath.Ext(u.filename)
+	name := u.filename[0:len(u.filename)-len(extension)] + ".mp4"
 	cmd := exec.Command("ffmpeg", "-y", // Yes to all
 		"-i", u.filename,
 		"-map_metadata", "-1", // strip out all (mostly) metadata
