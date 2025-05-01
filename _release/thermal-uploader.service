@@ -1,10 +1,11 @@
 [Unit]
 Description=Cacophony Project Thermal Video uploader
 After=multi-user.target network.target
+ConditionPathExists=/etc/salt/minion_id
 
 [Service]
 ExecStart=/usr/bin/thermal-uploader
-Restart=on-failure
+Restart=always
 RestartSec=5s
 
 [Install]
