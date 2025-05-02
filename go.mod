@@ -9,6 +9,7 @@ require (
 	github.com/TheCacophonyProject/modemd v1.11.0-tc2
 	github.com/alexflint/go-arg v1.4.2
 	github.com/godbus/dbus v4.1.0+incompatible
+	github.com/google/go-cmp v0.5.8
 	github.com/rjeczalik/notify v0.0.0-20171004161231-1aa3b9de8d84
 	github.com/spf13/afero v1.9.2
 	github.com/stretchr/testify v1.7.2

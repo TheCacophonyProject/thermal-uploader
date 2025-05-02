@@ -24,6 +24,7 @@ import (
 
 type Config struct {
 	Directory string `yaml:"directory"`
+	DeviceID  int    // Loaded this as part of the config so service will restart when changed.
 }
 
 func ParseConfig(configDir string) (*Config, error) {
@@ -40,6 +41,12 @@ func ParseConfig(configDir string) (*Config, error) {
 	config := &Config{
 		Directory: thermalRecorder.OutputDir,
 	}
+
+	device := goconfig.Device{}
+	if err := configRW.Unmarshal(goconfig.DeviceKey, &device); err != nil {
+		return nil, err
+	}
+	config.DeviceID = device.ID
 
 	if err := config.Validate(); err != nil {
 		return nil, err

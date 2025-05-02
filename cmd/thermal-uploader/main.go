@@ -29,6 +29,7 @@ import (
 	"github.com/TheCacophonyProject/modemd/connrequester"
 	arg "github.com/alexflint/go-arg"
 	"github.com/godbus/dbus"
+	"github.com/google/go-cmp/cmp"
 	"github.com/rjeczalik/notify"
 )
 
@@ -96,6 +97,7 @@ func runMain() error {
 	if err != nil {
 		return fmt.Errorf("configuration error: %v", err)
 	}
+	go checkConfigChanges(conf, args.ConfigDir)
 
 	log.Println("Making failed uploads directory")
 	{
@@ -296,4 +298,36 @@ func sendOnRequest(timeOn int64) error {
 		}
 	}
 	return err
+}
+
+// checkConfigChanges will compare the config from when first loaded to a new config each time
+// the config file is modified.
+// If there is a difference then the program will exit and systemd will restart the service, causing
+// the new config to be loaded.
+func checkConfigChanges(conf *Config, configDir string) error {
+	configFilePath := filepath.Join(configDir, goconfig.ConfigFileName)
+	fsEvents := make(chan notify.EventInfo, 1)
+	if err := notify.Watch(configFilePath, fsEvents, notify.InCloseWrite, notify.InMovedTo); err != nil {
+		return err
+	}
+	defer notify.Stop(fsEvents)
+
+	for {
+		<-fsEvents
+		newConfig, err := ParseConfig(configDir)
+		log.Debug("New config:", newConfig)
+
+		if err != nil {
+			log.Error("error reloading config:", err)
+			continue
+		}
+		diff := cmp.Diff(conf, newConfig)
+		log.Debug("Config diff:", diff)
+		if diff != "" {
+			log.Info("Config changed. Exiting to allow systemctl to restart service.")
+			os.Exit(0)
+		} else {
+			log.Info("No relevant changes detected in config file.")
+		}
+	}
 }
