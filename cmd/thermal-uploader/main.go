@@ -43,7 +43,7 @@ const (
 
 var log = logging.NewLogger("info")
 var version = "No version provided"
-var globs = [4]string{"*.cptv", "*.avi", "*.mp4", "*.aac"}
+var globs = [5]string{"*.cptv", "*.avi", "*.mp4", "*.aac", "*.wav"}
 
 type Args struct {
 	ConfigDir string `arg:"-c,--config" help:"path to configuration directory"`
