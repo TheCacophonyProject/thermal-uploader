@@ -145,8 +145,9 @@ func (u *uploadJob) parseDateTime() error {
 			break
 		}
 	}
-	return fmt.Errorf("Could not parse date time")
+	return fmt.Errorf("could not parse date time")
 }
+
 func (u *uploadJob) preprocess() error {
 	err := u.parseDateTime()
 	if err != nil {
@@ -188,6 +189,7 @@ func (u *uploadJob) setDuration() error {
 	if u.isThermal() {
 		return nil
 	}
+	//duration already set if converted
 	if u.isAudio() && !u.requiresConversion() {
 		return nil
 	}
