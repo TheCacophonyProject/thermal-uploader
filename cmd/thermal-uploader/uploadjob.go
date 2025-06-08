@@ -14,16 +14,20 @@ import (
 	api "github.com/TheCacophonyProject/go-api"
 )
 
+var timeLayouts = [3]string{"2006-01-02--15-04-05", "20060102-150405.000000", "20060102-150405"}
+
 type uploadJob struct {
 	filename    string
 	metafile    string
 	recID       int
 	hasMetaData bool
 	duration    int
+	dateParsed  bool
+	recDate     time.Time
 }
 
 func (u *uploadJob) requiresConversion() bool {
-	return filepath.Ext(u.filename) == ".avi"
+	return filepath.Ext(u.filename) == ".avi" || filepath.Ext(u.filename) == ".wav"
 }
 
 func (u *uploadJob) isIR() bool {
@@ -31,7 +35,7 @@ func (u *uploadJob) isIR() bool {
 }
 
 func (u *uploadJob) isAudio() bool {
-	return filepath.Ext(u.filename) == ".aac"
+	return filepath.Ext(u.filename) == ".wav" || filepath.Ext(u.filename) == ".aac"
 }
 
 func (u *uploadJob) isThermal() bool {
@@ -51,12 +55,61 @@ func (u *uploadJob) fileType() string {
 func (u *uploadJob) convert() error {
 	if !u.requiresConversion() {
 		return nil
+	} else if u.isAudio() {
+		return u.convertAudio()
 	} else if u.isIR() {
 		return u.convertMp4()
 	}
 	return nil
 }
 
+func (u *uploadJob) convertAudio() error {
+	var extension = filepath.Ext(u.filename)
+
+	var name = u.filename[0:len(u.filename)-len(extension)] + ".aac"
+	var duration = fmt.Sprintf("duration=%d", u.duration)
+	args := []string{"-y", // Yes to all
+		"-i", u.filename,
+		"-codec:a", "aac",
+		"-b:a", "128k",
+		"-q:a",
+		"1.2",
+		"-aac_coder",
+		"fast",
+		"-movflags",
+		"faststart",
+		"-movflags",
+		"+use_metadata_tags",
+		"-map_metadata",
+		"0"}
+
+	if u.dateParsed {
+		var recDateTime = fmt.Sprintf("recordingDateTime=%s", u.recDate.Format(time.RFC3339))
+		args = append(args,
+			"-metadata",
+			recDateTime)
+	}
+	args = append(args,
+		"-metadata",
+		duration,
+		"-f",
+		"mp4", name)
+
+	cmd := exec.Command("ffmpeg", args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(u.filename); err != nil {
+		log.Printf("warning: failed to delete %s: %v", u.filename, err)
+	}
+
+	u.filename = name
+	return nil
+}
 func metaFileExists(filename string) (bool, string) {
 	metafile := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".txt"
 	if _, err := os.Stat(metafile); err != nil {
@@ -67,7 +120,7 @@ func metaFileExists(filename string) (bool, string) {
 
 func newUploadJob(filename string) *uploadJob {
 	exists, name := metaFileExists(filename)
-	u := &uploadJob{filename: filename, metafile: name, hasMetaData: exists, duration: 0}
+	u := &uploadJob{filename: filename, metafile: name, hasMetaData: exists, duration: 0, dateParsed: false}
 	return u
 }
 
@@ -82,8 +135,24 @@ func (u *uploadJob) delete() {
 		}
 	}
 }
+
+func (u *uploadJob) parseDateTime() error {
+	for _, layout := range timeLayouts {
+		dt, err := parseDateTime(u.filename, layout, false)
+		if err == nil {
+			u.recDate = dt
+			u.dateParsed = true
+			break
+		}
+	}
+	return fmt.Errorf("Could not parse date time")
+}
 func (u *uploadJob) preprocess() error {
-	err := u.setDuration()
+	err := u.parseDateTime()
+	if err != nil {
+		log.Printf("Error getting datetime %v\n", err)
+	}
+	err = u.setDuration()
 	if err != nil {
 		log.Printf("Error getting duration %v\n", err)
 	}
@@ -119,7 +188,7 @@ func (u *uploadJob) setDuration() error {
 	if u.isThermal() {
 		return nil
 	}
-	if u.isAudio() {
+	if u.isAudio() && !u.requiresConversion() {
 		return nil
 	}
 
@@ -171,11 +240,9 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 	data := map[string]interface{}{
 		"type": u.fileType(),
 	}
-	if u.isIR() {
-		const layout = "20060102-150405.000000"
-		dt, err := parseDateTime(u.filename, layout, false)
-		if err == nil {
-			data["recordingDateTime"] = dt.Format(time.RFC3339)
+	if u.isIR() || u.isAudio() {
+		if u.dateParsed {
+			data["recordingDateTime"] = u.recDate.Format(time.RFC3339)
 		}
 	}
 	if u.duration > 0 {
