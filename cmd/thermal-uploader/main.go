@@ -17,8 +17,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -43,7 +45,7 @@ const (
 
 var log = logging.NewLogger("info")
 var version = "No version provided"
-var globs = [4]string{"*.cptv", "*.avi", "*.mp4", "*.aac"}
+var globs = [5]string{"*.cptv", "*.avi", "*.mp4", "*.aac", "*.wav"}
 
 type Args struct {
 	ConfigDir string `arg:"-c,--config" help:"path to configuration directory"`
@@ -214,6 +216,8 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
 	}
 	// start at a random index to avoid always failing on the same file
 	startIndex := rand.Intn(len(matches))
+	var urlError *url.Error
+
 	for i := 0; i < len(matches); i++ {
 		index := (startIndex + i) % len(matches)
 		filename := matches[index]
@@ -222,7 +226,11 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
 
 		if err != nil {
 			log.Printf("Uploading still failing to upload %v: %v", filename, err)
-			return false
+
+			// any http requrest error will be caught here, i think if not http error should try all other files
+			if errors.As(err, &urlError) {
+				return false
+			}
 		}
 		log.Print("success uploading failed items")
 	}
