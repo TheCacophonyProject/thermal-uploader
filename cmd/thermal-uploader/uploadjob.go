@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -259,12 +258,7 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	f, err := os.Open(u.filename)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-	return apiClient.UploadVideo(bufio.NewReader(f), data)
+	return apiClient.UploadVideo(u.filename, data)
 }
 
 func parseDateTime(filename string, layout string, utctime bool) (time.Time, error) {
