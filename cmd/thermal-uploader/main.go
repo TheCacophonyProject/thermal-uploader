@@ -23,8 +23,11 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"syscall"
 	"time"
 
+	"github.com/TheCacophonyProject/event-reporter/v3/eventclient"
 	"github.com/TheCacophonyProject/go-api"
 	goconfig "github.com/TheCacophonyProject/go-config"
 	"github.com/TheCacophonyProject/go-utils/logging"
@@ -45,7 +48,7 @@ const (
 
 var log = logging.NewLogger("info")
 var version = "No version provided"
-var globs = [5]string{"*.cptv", "*.avi", "*.mp4", "*.aac", "*.wav"}
+var globs = [6]string{"*.cptv", "*.avi", "*.mp4", "*.aac", "*.wav", "*.m4a"}
 
 type Args struct {
 	ConfigDir string `arg:"-c,--config" help:"path to configuration directory"`
@@ -67,6 +70,83 @@ func main() {
 	err := runMain()
 	if err != nil {
 		log.Fatal(err.Error())
+	}
+}
+
+// getGlobMatches returns a map of glob patterns to their matched file type.
+func getGlobMatches(directory string) map[string][]string {
+	var matches = make(map[string][]string)
+	for _, glob := range globs {
+		globMatches, _ := filepath.Glob(filepath.Join(directory, glob))
+
+		matches[glob] = globMatches
+	}
+	return matches
+}
+
+func makeFileMetricEvents(directory string) {
+	nextEventTime := time.Now()
+	for {
+
+		// Get a map of all the files, including failed uploads.
+		readyToUploadMatches := getGlobMatches(directory)
+		failedUploadMatches := getGlobMatches(filepath.Join(directory, failedUploadsDir))
+		allMatches := map[string][]string{}
+		for glob, files := range readyToUploadMatches {
+			allMatches[strings.TrimPrefix(glob, "*.")] = files
+		}
+		for glob, files := range failedUploadMatches {
+			allMatches[strings.TrimPrefix(glob, "*.")+"-failed"] = files
+		}
+
+		// Count the files and total size.
+		matchFileCount := map[string]any{}
+		totalFileCount := 0
+		totalFileSizeKB := 0
+		for fileType, files := range allMatches {
+			// Skip globs with no matches
+			if len(files) == 0 {
+				continue
+			}
+			matchFileCount[fileType] = len(files)
+			totalFileCount += len(files)
+			for _, file := range files {
+				fileInfo, err := os.Stat(file)
+				if err != nil {
+					// Files are getting deleted/moved at the same time so we can ignore this error.
+					continue
+				}
+				totalFileSizeKB += int(fileInfo.Size() / 1024)
+			}
+		}
+
+		// Find free space on the disk.
+		var freeSpaceKB int
+		var stat syscall.Statfs_t
+		if err := syscall.Statfs("/", &stat); err != nil {
+			log.Errorf("Failed to get disk free space: %v", err)
+		} else {
+			freeSpaceKB = int(stat.Bavail * uint64(stat.Bsize) / 1024)
+		}
+
+		// Make/Add event logging the files count, total count, and file size.
+		if err := eventclient.AddEvent(eventclient.Event{
+			Timestamp: time.Now(),
+			Type:      "fileCount",
+			Details: map[string]any{
+				"fileCount":       matchFileCount,
+				"totalFileCount":  totalFileCount,
+				"totalFileSizeKB": totalFileSizeKB,
+				"freeSpaceKB":     freeSpaceKB,
+			},
+		}); err != nil {
+			log.Errorf("Failed to make file count event: %v", err)
+		}
+		log.Infof("Logged file count event. Total file count: %v", totalFileCount)
+
+		// Wait to make the next metric event
+		nextEventTime = nextEventTime.Add(time.Hour * 24)
+		time.Sleep(time.Until(nextEventTime))
 	}
 }
 
@@ -100,6 +180,8 @@ func runMain() error {
 		return fmt.Errorf("configuration error: %v", err)
 	}
 	go checkConfigChanges(conf, args.ConfigDir)
+
+	go makeFileMetricEvents(conf.Directory)
 
 	log.Println("Making failed uploads directory")
 	{
@@ -175,10 +257,10 @@ func minDuration(a, b time.Duration) time.Duration {
 }
 
 func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
-	var matches = make([]string, 0, 5)
-	for _, glob := range globs {
-		globMatches, _ := filepath.Glob(filepath.Join(directory, glob))
-		matches = append(matches, globMatches...)
+	var globMatches = getGlobMatches(directory)
+	var matches = make([]string, 0)
+	for _, files := range globMatches {
+		matches = append(matches, files...)
 	}
 
 	var err error
@@ -206,18 +288,21 @@ func uploadFiles(apiClient *api.CacophonyAPI, directory string) error {
 }
 
 func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
-	var matches = make([]string, 0, 5)
-	for _, glob := range globs {
-		globMatches, _ := filepath.Glob(filepath.Join(directory, failedUploadsDir, glob))
-		matches = append(matches, globMatches...)
+	// Get the files that failed previously
+	var matchesMap = getGlobMatches(filepath.Join(directory, failedUploadsDir))
+	var matches = make([]string, 0)
+	for _, files := range matchesMap {
+		matches = append(matches, files...)
 	}
 	if len(matches) == 0 {
 		return true
 	}
+
 	// start at a random index to avoid always failing on the same file
 	startIndex := rand.Intn(len(matches))
 	var urlError *url.Error
 
+	// Try to upload the files that failed previously.
 	for i := 0; i < len(matches); i++ {
 		index := (startIndex + i) % len(matches)
 		filename := matches[index]
@@ -227,12 +312,13 @@ func retryFailedUploads(apiClient *api.CacophonyAPI, directory string) bool {
 		if err != nil {
 			log.Printf("Uploading still failing to upload %v: %v", filename, err)
 
-			// any http requrest error will be caught here, i think if not http error should try all other files
+			// any http request error will be caught here, I think if not http error should try all other files
 			if errors.As(err, &urlError) {
 				return false
 			}
+			continue
 		}
-		log.Print("success uploading failed items")
+		log.Print("Success in uploading previously failed file: ", filename)
 	}
 	return true
 }
