@@ -3,6 +3,7 @@ module github.com/TheCacophonyProject/thermal-uploader
 go 1.25.0
 
 require (
+	github.com/TheCacophonyProject/event-reporter/v3 v3.8.0
 	github.com/TheCacophonyProject/go-api v1.3.0
 	github.com/TheCacophonyProject/go-config v1.9.1
 	github.com/TheCacophonyProject/go-utils v0.1.3
@@ -16,7 +17,6 @@ require (
 )
 
 require (
-	github.com/TheCacophonyProject/event-reporter/v3 v3.8.0 // indirect
 	github.com/alexflint/go-scalar v1.1.0 // indirect
 	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
