@@ -40,6 +40,7 @@ import (
 
 const (
 	failedUploadsDir        = "failed-uploads"
+	postProcessDir          = "postprocess"
 	connectionTimeout       = time.Minute * 2
 	connectionRetryInterval = time.Minute * 10
 	failedRetryInterval     = time.Minute * 10
@@ -91,12 +92,16 @@ func makeFileMetricEvents(directory string) {
 		// Get a map of all the files, including failed uploads.
 		readyToUploadMatches := getGlobMatches(directory)
 		failedUploadMatches := getGlobMatches(filepath.Join(directory, failedUploadsDir))
+		postProcessMatches := getGlobMatches(filepath.Join(directory, postProcessDir))
 		allMatches := map[string][]string{}
 		for glob, files := range readyToUploadMatches {
 			allMatches[strings.TrimPrefix(glob, "*.")] = files
 		}
 		for glob, files := range failedUploadMatches {
 			allMatches[strings.TrimPrefix(glob, "*.")+"-failed"] = files
+		}
+		for glob, files := range postProcessMatches {
+			allMatches[strings.TrimPrefix(glob, "*.")+"-postprocessed"] = files
 		}
 
 		// Count the files and total size.
