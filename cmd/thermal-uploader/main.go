@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -206,11 +207,13 @@ func runMain() error {
 	nextFailedRetry := time.Now()
 	failedRetryAttempts := 0
 
+	go updateStayOnLoop()
+
 	for {
-		err := sendOnRequest(60)
-		if err != nil {
-			return err
-		}
+		// Ask tc2-hat-attiny to keep the device on while uploading. This is
+		// only a request, uploading continues if it fails.
+		setBusyUploading(true)
+
 		// Check for files to upload first in case there are CPTV
 		// files around when the uploader starts.
 		cr.Start()
@@ -243,12 +246,9 @@ func runMain() error {
 			// A new file was added during the last iteration, loop again.
 		case <-time.After(time.Second):
 			// No new file was added, then:
-			err := sendFinished()
-			if err != nil {
-				return err
-			} // Tell tc2-hat-attiny that we are all done.
-			cr.Stop()  // Stop requesting an internet connection.
-			<-fsEvents // Wait for a new file to be added.
+			setBusyUploading(false) // Tell tc2-hat-attiny that we are all done.
+			cr.Stop()               // Stop requesting an internet connection.
+			<-fsEvents              // Wait for a new file to be added.
 		}
 	}
 }
@@ -345,60 +345,6 @@ func uploadFileWithRetries(apiClient *api.CacophonyAPI, job *uploadJob) error {
 	return job.moveToFailed()
 }
 
-const dbusDest = "org.cacophony.ATtiny"
-const dbusPath = "/org/cacophony/ATtiny"
-
-func getDbusObj() (dbus.BusObject, error) {
-	conn, err := dbus.SystemBus()
-	if err != nil {
-		return nil, err
-	}
-	obj := conn.Object(dbusDest, dbusPath)
-	return obj, nil
-}
-
-func sendFinished() error {
-	attempt := 0
-	obj, err := getDbusObj()
-	if err != nil {
-		return err
-	}
-	for attempt < 3 {
-		err = obj.Call("org.cacophony.ATtiny.StayOnFinished", 0, "uploader").Store()
-		if err == nil {
-			log.Println("Stay on finished requested")
-			return nil
-		}
-		attempt += 1
-		if attempt < 3 {
-			log.Printf("Retrying finished request %v", err)
-			time.Sleep(1 * time.Second)
-		}
-	}
-	return err
-}
-
-func sendOnRequest(timeOn int64) error {
-	attempt := 0
-	obj, err := getDbusObj()
-	if err != nil {
-		return err
-	}
-	for attempt < 3 {
-		err = obj.Call("org.cacophony.ATtiny.StayOnForProcess", 0, "uploader", timeOn).Store()
-		if err == nil {
-			log.Println("Stay on requested")
-			return nil
-		}
-		attempt += 1
-		if attempt < 3 {
-			log.Printf("Retrying on request %v", err)
-			time.Sleep(1 * time.Second)
-		}
-	}
-	return err
-}
-
 // checkConfigChanges will compare the config from when first loaded to a new config each time
 // the config file is modified.
 // If there is a difference then the program will exit and systemd will restart the service, causing
@@ -429,4 +375,83 @@ func checkConfigChanges(conf *Config, configDir string) error {
 			log.Info("No relevant changes detected in config file.")
 		}
 	}
+}
+
+const dbusDest = "org.cacophony.ATtiny"
+const dbusPath = "/org/cacophony/ATtiny"
+
+const stayOnMinutes = int64(3)           // Each request will be for 3 minutes
+const stayOnUpdateInterval = time.Minute // Send an update every minute
+
+var (
+	stayOnBusy        atomic.Bool              // Set when the device needs to stay on for uploading.
+	stayOnUpdate      = make(chan struct{}, 1) // Triggers an update without waiting for the interval.
+	attinyUnavailable bool                     // Only used by updateStayOnLoop, so needs no locking.
+)
+
+func getDbusObj() (dbus.BusObject, error) {
+	conn, err := dbus.SystemBus()
+	if err != nil {
+		return nil, err
+	}
+	obj := conn.Object(dbusDest, dbusPath)
+	return obj, nil
+}
+
+func isServiceUnknown(err error) bool {
+	var dbusErr dbus.Error
+	return errors.As(err, &dbusErr) && dbusErr.Name == "org.freedesktop.DBus.Error.ServiceUnknown"
+}
+
+func setBusyUploading(busy bool) {
+	if stayOnBusy.Swap(busy) != busy { // If old value != new value
+		if busy {
+			log.Println("Requesting to stay on for uploading")
+		} else {
+			log.Println("Uploading finished, no longer requesting to stay on")
+		}
+	}
+
+	select {
+	case stayOnUpdate <- struct{}{}:
+	default: // An update is already queued.
+	}
+}
+
+func updateStayOnLoop() {
+	for {
+		select {
+		case <-stayOnUpdate:
+		case <-time.After(stayOnUpdateInterval):
+		}
+		sendStayOnState()
+	}
+}
+
+func sendStayOnState() {
+	obj, err := getDbusObj()
+	if err != nil {
+		log.Warnf("Failed to connect to dbus: %v", err)
+		return
+	}
+
+	busy := stayOnBusy.Load()
+	if busy {
+		err = obj.Call(dbusDest+".StayOnForProcess", 0, "uploader", stayOnMinutes).Store()
+	} else {
+		err = obj.Call(dbusDest+".StayOnFinished", 0, "uploader").Store()
+	}
+	if err != nil {
+		if isServiceUnknown(err) {
+			if !attinyUnavailable {
+				attinyUnavailable = true
+				log.Warnf("%s service is not running, continuing without it", dbusDest)
+			}
+			return
+		}
+		log.Warnf("Failed to update stay on state with the ATtiny: %v", err)
+		return
+	}
+	attinyUnavailable = false
+	log.Debugf("Sent stay on state of %v to the ATtiny", busy)
 }
