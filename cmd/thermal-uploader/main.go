@@ -46,6 +46,7 @@ const (
 	connectionRetryInterval = time.Minute * 10
 	failedRetryInterval     = time.Minute * 10
 	failedRetryMaxInterval  = time.Hour * 24
+	apiRetryInterval        = time.Second * 30
 )
 
 var log = logging.NewLogger("info")
@@ -172,13 +173,7 @@ func runMain() error {
 	}
 	log.Println("internet connection made")
 
-	apiClient, err := api.New()
-	if api.IsNotRegisteredError(err) {
-		log.Println("device not registered. Exiting and waiting to be restarted")
-		os.Exit(0)
-	} else if err != nil {
-		return err
-	}
+	apiClient := connectToAPI()
 	cr.Stop()
 
 	conf, err := ParseConfig(args.ConfigDir)
@@ -250,6 +245,24 @@ func runMain() error {
 			cr.Stop()               // Stop requesting an internet connection.
 			<-fsEvents              // Wait for a new file to be added.
 		}
+	}
+}
+
+// connectToAPI will keep trying to make an API client until it succeeds.
+// Intermittent internet failures are only logged so that they don't crash the
+// service, which would be noisy as systemd will keep restarting it.
+func connectToAPI() *api.CacophonyAPI {
+	for {
+		apiClient, err := api.New()
+		if err == nil {
+			return apiClient
+		}
+		if api.IsNotRegisteredError(err) {
+			log.Println("device not registered. Exiting and waiting to be restarted")
+			os.Exit(0)
+		}
+		log.Warnf("Failed to connect to the API, trying again in %v: %v", apiRetryInterval, err)
+		time.Sleep(apiRetryInterval)
 	}
 }
 
