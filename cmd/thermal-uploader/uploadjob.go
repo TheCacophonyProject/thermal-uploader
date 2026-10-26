@@ -280,20 +280,20 @@ func parseDateTime(filename string, layout string, utctime bool) (time.Time, err
 				log.Printf("Could not get local location%v\n", err)
 				t, err = time.Parse(layout, file)
 				if err != nil {
-					log.Errorf("Could not parse date time for %v %v\n", filename, err)
+					log.Debugf("Could not parse date time for %v %v\n", filename, err)
 					return time.Time{}, err
 				}
 			} else {
 				t, err = time.ParseInLocation(layout, file, loc)
 				if err != nil {
-					log.Errorf("Could not parse date time for %v %v\n", filename, err)
+					log.Debugf("Could not parse date time for %v %v\n", filename, err)
 					return time.Time{}, err
 				}
 				log.Printf("Parsed location %v %v %v", file, loc, t)
 			}
 		}
 		if err != nil {
-			log.Printf("Could not parse date time for %v %v\n", filename, err)
+			log.Debugf("Could not parse date time for %v %v\n", filename, err)
 			return time.Time{}, err
 		}
 		return t, nil
