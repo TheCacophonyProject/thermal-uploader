@@ -144,7 +144,7 @@ func (u *uploadJob) parseDateTime() error {
 			break
 		}
 	}
-	return fmt.Errorf("could not parse date time")
+	return fmt.Errorf("could not parse date time for %v", u.filename)
 }
 
 func (u *uploadJob) preprocess() error {
