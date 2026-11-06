@@ -141,10 +141,10 @@ func (u *uploadJob) parseDateTime() error {
 		if err == nil {
 			u.recDate = dt
 			u.dateParsed = true
-			break
+			return nil
 		}
 	}
-	return fmt.Errorf("could not parse date time")
+	return fmt.Errorf("could not parse date time from file name %v", u.filename)
 }
 
 func (u *uploadJob) preprocess() error {
@@ -264,41 +264,20 @@ func (u *uploadJob) uploadFile(apiClient *api.CacophonyAPI) (int, error) {
 func parseDateTime(filename string, layout string, utctime bool) (time.Time, error) {
 	file := filepath.Base(filename)
 	file = strings.TrimSuffix(file, filepath.Ext(file))
-	// var additionalMetadata = make(map[string]interface{})
 
-	// GP this will change
-	if len(file) >= len(layout) {
-		file = file[:len(layout)]
-		// attempt to get system timezone
-		var t time.Time
-		var err error
-		if utctime {
-			t, err = time.Parse(layout, file)
-		} else {
-			loc, err := time.LoadLocation("Local")
-			if err != nil {
-				log.Printf("Could not get local location%v\n", err)
-				t, err = time.Parse(layout, file)
-				if err != nil {
-					log.Errorf("Could not parse date time for %v %v\n", filename, err)
-					return time.Time{}, err
-				}
-			} else {
-				t, err = time.ParseInLocation(layout, file, loc)
-				if err != nil {
-					log.Errorf("Could not parse date time for %v %v\n", filename, err)
-					return time.Time{}, err
-				}
-				log.Printf("Parsed location %v %v %v", file, loc, t)
-			}
-		}
-		if err != nil {
-			log.Printf("Could not parse date time for %v %v\n", filename, err)
-			return time.Time{}, err
-		}
-		return t, nil
+	if len(file) < len(layout) {
+		return time.Time{}, fmt.Errorf("could not parse date time for %v with expected layout %v", filename, layout)
 	}
-	return time.Time{}, fmt.Errorf("could not parse date time for %v with expected layout %v", filename, layout)
+	file = file[:len(layout)]
+	if utctime {
+		return time.Parse(layout, file)
+	}
+	loc, err := time.LoadLocation("Local")
+	if err != nil {
+		// Fall back to parsing as UTC.
+		return time.Parse(layout, file)
+	}
+	return time.ParseInLocation(layout, file, loc)
 }
 
 type metadata map[string]interface{}
